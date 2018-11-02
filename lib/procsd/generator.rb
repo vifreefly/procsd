@@ -9,8 +9,8 @@ module Procsd
     end
 
     def export(services, procsd:, options:)
+      self.destination_root = "/tmp"
       @procsd = procsd
-      set_dest_root
 
       app_name = @procsd["app"]
       target_name = "#{app_name}.target"
@@ -22,29 +22,28 @@ module Procsd
           "command" => service_command,
           "environment" => @procsd["environment"]
         )
-        create_service(service_name, service_config)
+        generate(service_name, service_config, type: :service)
       end
 
       target_config = {
         "app" => app_name,
         "services" => services.keys
       }
-      create_target(target_name, target_config)
+      generate(target_name, target_config, type: :target)
     end
 
     private
 
-    def create_service(service_name, confing)
-      template("templates/service.erb", service_name, confing)
+    def generate(filename, confing, type:)
+      template("templates/#{type}.erb", filename, confing)
+      mvsudo(filename)
     end
 
-    def create_target(target_name, config)
-      template("templates/target.erb", target_name, config)
-    end
+    def mvsudo(filename)
+      source_path = File.join(destination_root, filename)
+      dest_path = File.join(@procsd["systemd_dir"], filename)
 
-    def set_dest_root
-      self.destination_root = @procsd["systemd_dir"]
-      puts "Systemd export directory: #{destination_root}"
+      system "sudo", "mv", source_path, dest_path
     end
   end
 end

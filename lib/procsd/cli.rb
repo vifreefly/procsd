@@ -5,11 +5,6 @@ module Procsd
   class CLI < Thor
     map %w[--version -v] => :__print_version
 
-    # desc "example", "fsdfsd"
-    # def example
-    #   set_environment
-    # end
-
     desc "create", "Export to systemd, enable and start all services"
     option :path,  aliases: :p, type: :string, required: true, banner: "$PATH"
     option :home,  aliases: :h, type: :string, required: true, banner: "$HOME"
