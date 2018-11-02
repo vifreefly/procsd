@@ -1,5 +1,3 @@
-require 'pathname'
-
 module Procsd
   class Generator < Thor::Group
     include Thor::Actions
@@ -8,7 +6,7 @@ module Procsd
       File.dirname(__FILE__)
     end
 
-    def export(services, procsd:, options:)
+    def export!(services, procsd:, options:)
       self.destination_root = "/tmp"
       @procsd = procsd
 
