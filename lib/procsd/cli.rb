@@ -7,11 +7,9 @@ module Procsd
     map %w[--version -v] => :__print_version
 
     desc "create", "Create and enable app services"
-    option :path,  aliases: :p, type: :string, required: true, banner: "$PATH"
-    option :home,  aliases: :h, type: :string, required: true, banner: "$HOME"
-    option :shell, aliases: :s, type: :string, required: true, banner: "$SHELL"
     option :user,  aliases: :u, type: :string, required: true, banner: "$USER"
     option :dir,   aliases: :d, type: :string, required: true, banner: "$PWD"
+    option :path,  aliases: :p, type: :string, required: true, banner: "$PATH"
     def create
       preload!
 

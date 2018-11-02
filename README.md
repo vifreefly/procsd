@@ -1,7 +1,7 @@
 # Procsd
 
-```
-sudo procsd create -p $PATH -h $HOME -s $SHELL -u $USER -d $PWD
+```bash
+$ procsd create -u $USER -d $PWD -p $PATH
 ```
 
 ## Installation

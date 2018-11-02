@@ -9,6 +9,7 @@ module Procsd
     def export!(services, procsd:, options:)
       self.destination_root = "/tmp"
       @procsd = procsd
+      say "Systemd directory: #{@procsd["systemd_dir"]}"
 
       app_name = @procsd["app"]
       target_name = "#{app_name}.target"
@@ -34,13 +35,9 @@ module Procsd
 
     def generate(filename, confing, type:)
       template("templates/#{type}.erb", filename, confing)
-      mvsudo(filename)
-    end
 
-    def mvsudo(filename)
       source_path = File.join(destination_root, filename)
       dest_path = File.join(@procsd["systemd_dir"], filename)
-
       system "sudo", "mv", source_path, dest_path
     end
   end
