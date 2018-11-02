@@ -1,5 +1,6 @@
-require "procsd/version"
+require 'thor'
+require 'procsd/version'
 
 module Procsd
-  # Your code goes here...
+  DEFAULT_SYSTEMD_DIR = "/etc/systemd/system".freeze
 end

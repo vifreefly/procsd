@@ -1,0 +1,23 @@
+[Unit]
+Requires=network.target
+PartOf=<%= config["target_name"] %>
+
+[Service]
+Type=simple
+User=<%= config["user"] %>
+WorkingDirectory=<%= config["dir"] %>
+ExecStart=/bin/bash -lc '<%= config["command"] %>'
+
+Restart=always
+RestartSec=1
+TimeoutStopSec=15
+KillMode=mixed
+StandardInput=null
+SyslogIdentifier=<%= config["id"] %>
+
+Environment="PATH=<%= config["path"] %>"
+Environment="HOME=<%= config["home"] %>"
+Environment="SHELL=<%= config["shell"] %>"
+<% config["environment"].each do |env| -%>
+Environment="<%= env %>"
+<% end -%>
