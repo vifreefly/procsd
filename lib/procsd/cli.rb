@@ -19,7 +19,7 @@ module Procsd
         gen.export!(services, procsd: @procsd, options: options)
 
         enable
-        if system "sudo", "systemctl", "daemon-reload"
+        if execute %w(sudo systemctl daemon-reload)
           say("Reloaded configuraion (daemon-reload)", :green)
         end
 
@@ -40,12 +40,12 @@ module Procsd
         services.keys.push(target_name).each do |filename|
           path = File.join(systemd_dir, filename)
           if File.exist? path
-            system "sudo", "rm", path
+            execute %W(sudo rm #{path})
             say "Deleted #{path}"
           end
         end
 
-        if system "sudo", "systemctl", "daemon-reload"
+        if execute %w(sudo systemctl daemon-reload)
           say("Reloaded configuraion (daemon-reload)", :green)
         end
 
@@ -63,7 +63,7 @@ module Procsd
       if target_enabled?
         say "App target #{target_name} already enabled"
       else
-        if system "sudo", "systemctl", "enable", target_name
+        if execute %W(sudo systemctl enable #{target_name})
           say("Enabled app target #{target_name}", :green)
         end
       end
@@ -77,7 +77,7 @@ module Procsd
       if !target_enabled?
         say "App target #{target_name} already disabled"
       else
-        if system "sudo", "systemctl", "disable", target_name
+        if execute %W(sudo systemctl disable #{target_name})
           say("Disabled app target #{target_name}", :green)
         end
       end
@@ -91,7 +91,7 @@ module Procsd
       if target_active?
         say "Already started/active (#{target_name})"
       else
-        if system "sudo", "systemctl", "start", target_name
+        if execute %W(sudo systemctl start #{target_name})
           say("Started app services (#{target_name})", :green)
         end
       end
@@ -105,7 +105,7 @@ module Procsd
       if !target_active?
         say "Already stopped/inactive (#{target_name})"
       else
-        if system "sudo", "systemctl", "stop", target_name
+        if execute %W(sudo systemctl stop #{target_name})
           say("Stopped app services (#{target_name})", :green)
         end
       end
@@ -116,7 +116,7 @@ module Procsd
       preload!
       say_target_not_exists and return unless target_exist?
 
-      if system "sudo", "systemctl", "restart", target_name
+      if execute %W(sudo systemctl restart #{target_name})
         say("Restarted app services (#{target_name})", :green)
       end
     end
@@ -136,7 +136,7 @@ module Procsd
         command += filtered
       end
 
-      system *command
+      execute command
     end
 
     desc "logs", "Show app services logs"
@@ -159,7 +159,7 @@ module Procsd
       say("Can't find any services matching given name: #{service_name}", :red) and return if filtered.empty?
 
       filtered.each { |service| command.push("--unit", service) }
-      system *command
+      execute command
     end
 
     desc "--version, -v", "Print the version"
@@ -168,6 +168,11 @@ module Procsd
     end
 
     private
+
+    def execute(command)
+      say "> Executing command: #{command.join(' ')}" if ENV["VERBOSE"] == "true"
+      system *command
+    end
 
     def say_target_not_exists
       say("App target #{target_name} is not exists", :red)

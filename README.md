@@ -193,6 +193,18 @@ Procsd following one rule: simplicity. For export it uses static service files (
 ## Notes
 
 * If you want to set environment variables per process, [use format](https://github.com/ddollar/foreman/wiki/Per-Process-Environment-Variables) like Foreman recommends.
+* To print commands before execution, provide env variable `VERBOSE=true` before procsd command. Example:
+
+```
+deploy@server:~/sample_app$ VERBOSE=true procsd logs -n 3
+
+> Executing command: journalctl --no-pager --all --no-hostname --output short-iso -n 3 --unit sample_app-web.1.service --unit sample_app-worker.1.service --unit sample_app-worker.2.service
+
+-- Logs begin at Sun 2018-10-21 00:38:42 +04, end at Sun 2018-11-04 19:17:01 +04. --
+2018-11-04T19:11:59+0400 sample_app-worker.2[29907]: 2018-11-04T15:11:59.597Z 29907 TID-gne5aeyuz INFO: Upgrade to Sidekiq Pro for more features and support: http://sidekiq.org
+2018-11-04T19:11:59+0400 sample_app-worker.2[29907]: 2018-11-04T15:11:59.597Z 29907 TID-gne5aeyuz INFO: Booting Sidekiq 5.2.2 with redis options {:id=>"Sidekiq-server-PID-29907", :url=>nil}
+2018-11-04T19:11:59+0400 sample_app-worker.2[29907]: 2018-11-04T15:11:59.601Z 29907 TID-gne5aeyuz INFO: Starting processing, hit Ctrl-C to stop
+```
 
 ## ToDo
 * Add Capistrano integration examples
