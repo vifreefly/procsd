@@ -1,4 +1,5 @@
 require 'yaml'
+require 'erb'
 require_relative 'generator'
 
 module Procsd
@@ -221,7 +222,8 @@ module Procsd
       raise ConfigurationError, ".procsd.yml config file doesn't exists" unless File.exist? ".procsd.yml"
 
       @procfile = YAML.load_file("Procfile")
-      @procsd = YAML.load_file(".procsd.yml")
+      @procsd = YAML.load(ERB.new(File.read ".procsd.yml").result)
+
       raise ConfigurationError, "Missing app name in the .procsd.yml file" unless @procsd["app"]
 
       if formation = @procsd["formation"]

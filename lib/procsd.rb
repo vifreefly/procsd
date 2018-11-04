@@ -1,3 +1,4 @@
+require 'dotenv/load'
 require 'thor'
 require 'procsd/version'
 
