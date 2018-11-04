@@ -228,8 +228,17 @@ module Procsd
 
       @procfile = YAML.load_file("Procfile")
       @procsd = YAML.load(ERB.new(File.read ".procsd.yml").result)
-
       raise ConfigurationError, "Missing app name in the .procsd.yml file" unless @procsd["app"]
+
+      @procfile.each do |process_name, process_command|
+        if process_command.kind_of?(Hash)
+          unless process_command["start"]
+            raise ConfigurationError, "Missing start command for #{process_name} process in the Procfile"
+          end
+        else
+          @procfile[process_name] = { "start" => process_command }
+        end
+      end
 
       if formation = @procsd["formation"]
         @procsd["formation"] = formation.split(",").map { |f| f.split("=") }.to_h
