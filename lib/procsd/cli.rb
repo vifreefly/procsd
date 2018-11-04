@@ -162,6 +162,14 @@ module Procsd
       execute command
     end
 
+    desc "list", "List all app services"
+    def list
+      preload!
+      say_target_not_exists and return unless target_exist?
+
+      puts services.keys
+    end
+
     desc "--version, -v", "Print the version"
     def __print_version
       puts VERSION
