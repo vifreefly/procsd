@@ -7,9 +7,9 @@ module Procsd
     map %w[--version -v] => :__print_version
 
     desc "create", "Create and enable app services"
-    option :user,  aliases: :u, type: :string, required: true, banner: "$USER"
-    option :dir,   aliases: :d, type: :string, required: true, banner: "$PWD"
-    option :path,  aliases: :p, type: :string, required: true, banner: "$PATH"
+    option :user, aliases: :u, type: :string, required: true, banner: "$USER"
+    option :dir,  aliases: :d, type: :string, required: true, banner: "$PWD"
+    option :path, aliases: :p, type: :string, required: true, banner: "$PATH"
     def create
       preload!
 
@@ -141,8 +141,9 @@ module Procsd
     desc "logs", "Show app services logs"
     option :num, aliases: :n, type: :string, banner: "How many lines to print"
     option :tail, aliases: [:t, :f], type: :boolean, banner: "Display logs in real-time"
-    option :system, type: :boolean, banner: "Show only system messages" # similar to heroku `--source heroku`
+    option :system, type: :boolean, banner: "Show only system messages"
     option :priority, aliases: :p, type: :string, banner: "Show messages with a particular log level"
+    option :grep, aliases: :g, type: :string, banner: "Filter output to entries where message matches the provided query"
     def logs(service_name = nil)
       preload!
 
@@ -151,6 +152,7 @@ module Procsd
       command.push("-f") if options["tail"]
       command.push("--system") if options["system"]
       command.push("--priority", options["priority"]) if options["priority"]
+      command.push("--grep", "'" + options["grep"] + "'") if options["grep"]
 
       filtered = filter_services(service_name)
       say("Can't find any services matching given name: #{service_name}", :red) and return if filtered.empty?
