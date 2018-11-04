@@ -127,7 +127,7 @@ module Procsd
       preload!
       say_target_not_exists and return unless target_exist?
 
-      command = %w(systemctl status --no-pager --output short-iso)
+      command = %w(sudo systemctl status --no-pager --output short-iso)
       if options["target"]
         command << target_name
       else
@@ -148,7 +148,7 @@ module Procsd
     def logs(service_name = nil)
       preload!
 
-      command = %w(journalctl --no-pager --all --no-hostname --output short-iso)
+      command = %w(sudo journalctl --no-pager --all --no-hostname --output short-iso)
       command.push("-n", options.fetch("num", "100"))
       command.push("-f") if options["tail"]
       command.push("--system") if options["system"]
