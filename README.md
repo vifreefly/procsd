@@ -28,9 +28,9 @@ environment:
 ```
 > The only required option in `.procsd.yml` is `app` (application's name). Also you can provide custom Systemd directory path (`systemd_dir` option, default is _/etc/systemd/system_)
 
+Configuration is done.
 
-
-Configuration is done. Now it's time to **create** an application (export it to Systemd):
+### Create an application (export to Systemd)
 > To disable and remove application from Systemd there is command `$ procsd destroy`.
 
 > Note: `create` command needs to provide a few arguments: _--user_ (name of the current user), _--dir_ (application's working directory) and `--path` (user's $PATH). Usually it's fine to provide them like on example below:
@@ -49,8 +49,7 @@ Reloaded configuraion (daemon-reload)
 App services were created and enabled. Run `start` to start them
 ```
 
-
-**Start** application services:
+### Start application
 > Other control commands: `stop` and `restart`
 
 ```
@@ -60,7 +59,7 @@ Started app services (sample_app.target)
 ```
 
 
-Check the **status**:
+### Check the status
 > You can filter processes, like `$ procsd status worker` (show status only for worker processes) or `$ procsd status worker.2` (show status only for worker.2 process)
 
 > To show status of the main application target: `$ procsd status --target`
@@ -122,7 +121,7 @@ deploy@server:~/sample_app$ procsd status
 ```
 
 
-Now the interesting part, **logs**:
+### Check the logs
 > Like with command `status`, you can filter logs by passing the name of process as an argument: `$ procsd logs web` (show logs only for web processes, if any)
 
 ```
