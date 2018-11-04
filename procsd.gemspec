@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Victor Afanasev"]
   spec.email         = ["vicfreefly@gmail.com"]
 
-  spec.summary       = "Manage your application hassle-free with Procfile and Systemd in the Heroku style"
+  spec.summary       = "Manage your application processes in production hassle-free like Heroku CLI with Procfile and Systemd"
   spec.homepage      = "https://github.com/vifreefly/procsd"
   spec.license       = "MIT"
 
