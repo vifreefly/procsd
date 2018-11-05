@@ -11,6 +11,7 @@ module Procsd
     option :user, aliases: :u, type: :string, required: true, banner: "$USER"
     option :dir,  aliases: :d, type: :string, required: true, banner: "$PWD"
     option :path, aliases: :p, type: :string, required: true, banner: "$PATH"
+    option :'or-restart', type: :boolean, banner: "Create and start app services if not created yet, otherwise restart"
     def create
       preload!
 
@@ -23,9 +24,18 @@ module Procsd
           say("Reloaded configuraion (daemon-reload)", :green)
         end
 
-        say("App services were created and enabled. Run `start` to start them", :green)
+        if options["or-restart"]
+          start
+          say("App services were created, enabled and started", :green)
+        else
+          say("App services were created and enabled. Run `start` to start them", :green)
+        end
       else
-        say("App target `#{target_name}` already exists", :red)
+        if options["or-restart"]
+          restart
+        else
+          say("App target `#{target_name}` already exists", :red)
+        end
       end
     end
 
