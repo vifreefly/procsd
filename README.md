@@ -120,16 +120,14 @@ deploy@server:~/sample_app$ procsd status
 2018-11-04T01:54:17+0400 sample_app-worker.2[8827]: 2018-11-03T21:54:17.716Z 8827 TID-gniahzm1r INFO: Starting processing, hit Ctrl-C to stop
 ```
 
-Also you can see status in short format:
-> If service active, the circle before service name will have a green color, otherwise white.
+Also you can see status in a short format:
 
 ```
 deploy@server:~/sample_app$ procsd status --short
 
-sample_app.target
-● ├─sample_app-web.1.service
-● ├─sample_app-worker.1.service
-● └─sample_app-worker.2.service
+sample_app-web.1.service    loaded active running sample_app-web.1.service
+sample_app-worker.1.service loaded active running sample_app-worker.1.service
+sample_app-worker.2.service loaded active running sample_app-worker.2.service
 ```
 
 
@@ -218,6 +216,20 @@ deploy@server:~/sample_app$ VERBOSE=true procsd logs -n 3
 2018-11-04T19:11:59+0400 sample_app-worker.2[29907]: 2018-11-04T15:11:59.597Z 29907 TID-gne5aeyuz INFO: Booting Sidekiq 5.2.2 with redis options {:id=>"Sidekiq-server-PID-29907", :url=>nil}
 2018-11-04T19:11:59+0400 sample_app-worker.2[29907]: 2018-11-04T15:11:59.601Z 29907 TID-gne5aeyuz INFO: Starting processing, hit Ctrl-C to stop
 ```
+* You can use extended format of a Procfile to provide additional restart/stop commands for a process:
+> Keep in mind that syntax below is not supported by Foreman or Heroku
+
+> All possible options: `start`, `restart` and `stop`
+
+```yml
+web:
+  start: bundle exec rails server -p $PORT
+  restart: bundle exec pumactl phased-restart
+worker: bundle exec sidekiq -e production
+```
+
+Why? For example default Ruby on Rails application server [Puma](http://puma.io/) supports [Phased or Rolling restart](https://github.com/puma/puma/blob/master/docs/restart.md#normal-vs-hot-vs-phased-restart) feature. If you provide separate `restart`command for a process, then this command will be called (`$ procsd restart`) by Systemd instead of just killing and starting process again.
+
 
 ## ToDo
 * Add Capistrano integration examples

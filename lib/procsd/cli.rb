@@ -116,7 +116,17 @@ module Procsd
       preload!
       say_target_not_exists and return unless target_exist?
 
-      if execute %W(sudo systemctl restart #{target_name})
+      # If one of the child services of a target has `ExecReload` and `ReloadPropagatedFrom`
+      # options defined, then use `reload-or-restart` to call all services (not the main target)
+      # because https://github.com/systemd/systemd/issues/10638
+      success =
+        if services.any? { |_, command| command["restart"] }
+          execute %w(sudo systemctl reload-or-restart) + services.keys
+        else
+          execute %W(sudo systemctl restart #{target_name})
+        end
+
+      if success
         say("Restarted app services (#{target_name})", :green)
       end
     end
@@ -129,10 +139,11 @@ module Procsd
       say_target_not_exists and return unless target_exist?
 
       if options["short"]
-        execute %W(sudo systemctl list-dependencies #{target_name}) and return
+        command = %w(sudo systemctl list-units --no-pager --no-legend --all)
+      else
+        command = %w(sudo systemctl status --no-pager --output short-iso)
       end
 
-      command = %w(sudo systemctl status --no-pager --output short-iso)
       if options["target"]
         command << target_name
       else
@@ -172,7 +183,7 @@ module Procsd
       preload!
       say_target_not_exists and return unless target_exist?
 
-      puts services.keys
+      execute %W(sudo systemctl list-dependencies #{target_name})
     end
 
     desc "--version, -v", "Print the version"
@@ -183,7 +194,7 @@ module Procsd
     private
 
     def execute(command)
-      say "> Executing command: #{command.join(' ')}" if ENV["VERBOSE"] == "true"
+      say("> Executing command: `#{command.join(' ')}`", :yellow) if ENV["VERBOSE"] == "true"
       system *command
     end
 
