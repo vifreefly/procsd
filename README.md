@@ -171,6 +171,7 @@ Commands:
   procsd disable                                               # Disable app target
   procsd enable                                                # Enable app target
   procsd help [COMMAND]                                        # Describe available commands or one specific command
+  procsd list                                                  # List all app services
   procsd logs                                                  # Show app services logs
   procsd restart                                               # Restart app services
   procsd start                                                 # Start app services
@@ -209,7 +210,7 @@ deploy@server:~/sample_app$ VERBOSE=true procsd logs -n 3
 ## ToDo
 * Add Capistrano integration examples
 * Optional possibility to generate Ngnix config (with out-of-box SSL using [Certbot](https://certbot.eff.org/lets-encrypt/ubuntubionic-nginx)) for an application to use Ngnix as a proxy and serve static files
-* Add integration with [Inspeqtor](https://github.com/mperham/inspeqtor) to monitor application services and get alert notifications if someting happened
+* Add integration with [Inspeqtor](https://github.com/mperham/inspeqtor) to monitor application services and get alert notifications if something happened
 
 
 ## License
