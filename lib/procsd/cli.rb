@@ -10,14 +10,16 @@ module Procsd
     desc "create", "Create and enable app services"
     option :user, aliases: :u, type: :string, required: true, banner: "$USER"
     option :dir,  aliases: :d, type: :string, required: true, banner: "$PWD"
-    option :path, aliases: :p, type: :string, required: true, banner: "$PATH"
+    option :path, aliases: :p, type: :string, banner: "$PATH"
     option :'or-restart', type: :boolean, banner: "Create and start app services if not created yet, otherwise restart"
     def create
       preload!
 
       if !target_exist?
+        opts = options["path"] ? options : options.merge("path" => fetch_path)
+
         gen = Generator.new
-        gen.export!(services, procsd: @procsd, options: options)
+        gen.export!(services, procsd: @procsd, options: opts)
 
         enable
         if execute %w(sudo systemctl daemon-reload)
@@ -202,6 +204,11 @@ module Procsd
     end
 
     private
+
+    def fetch_path
+      # get value of the $PATH env variable including ~/.bashrc as well (-i flag)
+      `/bin/bash -ilc 'echo $PATH'`.strip
+    end
 
     def execute(command)
       say("> Executing command: `#{command.join(' ')}`", :yellow) if ENV["VERBOSE"] == "true"
