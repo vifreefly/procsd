@@ -122,10 +122,15 @@ module Procsd
     end
 
     desc "status", "Show app services status"
-    option :target, type: :string, banner: "Show main target status"
+    option :target, type: :boolean, banner: "Show main target status"
+    option :short,  type: :boolean, banner: "Show services three and their status shortly"
     def status(service_name = nil)
       preload!
       say_target_not_exists and return unless target_exist?
+
+      if options["short"]
+        execute %W(sudo systemctl list-dependencies #{target_name}) and return
+      end
 
       command = %w(sudo systemctl status --no-pager --output short-iso)
       if options["target"]

@@ -120,6 +120,18 @@ deploy@server:~/sample_app$ procsd status
 2018-11-04T01:54:17+0400 sample_app-worker.2[8827]: 2018-11-03T21:54:17.716Z 8827 TID-gniahzm1r INFO: Starting processing, hit Ctrl-C to stop
 ```
 
+Also you can see status in short format:
+> If service active, the circle before service name will have a green color, otherwise white.
+
+```
+deploy@server:~/sample_app$ procsd status --short
+
+sample_app.target
+● ├─sample_app-web.1.service
+● ├─sample_app-worker.1.service
+● └─sample_app-worker.2.service
+```
+
 
 ### Check the logs
 > Like with command `status`, you can filter logs by passing the name of process as an argument: `$ procsd logs web` (show logs only for web processes, if any)
