@@ -211,6 +211,8 @@ module Procsd
     end
 
     def execute(command)
+      trap("INT") { puts "\nInterrupted" ; exit 130 }
+
       say("> Executing command: `#{command.join(' ')}`", :yellow) if ENV["VERBOSE"] == "true"
       system *command
     end
