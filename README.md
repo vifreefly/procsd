@@ -16,7 +16,7 @@ Let's say you have following application's Procfile:
 web: bundle exec rails server -p $PORT
 worker: bundle exec sidekiq -e $RAILS_ENV
 ```
-and you want to have one instance of web process && two instances of worker process. Create inside application directory `.procsd.yml` config file:
+and you want to have one instance of web process && two instances of worker process. Create inside application directory `procsd.yml` config file:
 
 ```yaml
 app: sample_app
@@ -26,7 +26,7 @@ environment:
   - RAILS_ENV=production
   - RAILS_LOG_TO_STDOUT=true
 ```
-> The only required option in `.procsd.yml` is `app` (application's name). Also you can provide custom Systemd directory path (`systemd_dir` option, default is _/etc/systemd/system_)
+> The only required option in `procsd.yml` is `app` (application's name). Also you can provide custom Systemd directory path (`systemd_dir` option, default is _/etc/systemd/system_)
 
 Configuration is done.
 

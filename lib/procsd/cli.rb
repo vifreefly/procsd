@@ -257,12 +257,12 @@ module Procsd
     end
 
     def preload!
-      raise ConfigurationError, "Procfile file doesn't exists" unless File.exist? "Procfile"
-      raise ConfigurationError, ".procsd.yml config file doesn't exists" unless File.exist? ".procsd.yml"
+      raise ConfigurationError, "File Procfile doesn't exists" unless File.exist? "Procfile"
+      raise ConfigurationError, "File procsd.yml doesn't exists" unless File.exist? "procsd.yml"
 
       @procfile = YAML.load_file("Procfile")
-      @procsd = YAML.load(ERB.new(File.read ".procsd.yml").result)
-      raise ConfigurationError, "Missing app name in the .procsd.yml file" unless @procsd["app"]
+      @procsd = YAML.load(ERB.new(File.read "procsd.yml").result)
+      raise ConfigurationError, "Missing app name in the procsd.yml file" unless @procsd["app"]
 
       @procfile.each do |process_name, process_command|
         if process_command.kind_of?(Hash)
