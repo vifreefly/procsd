@@ -16,7 +16,7 @@ module Procsd
       preload!
 
       if !target_exist?
-        opts = options["path"] ? options : options.merge("path" => fetch_path)
+        opts = options["path"] ? options : options.merge("path" => fetch_path_env)
 
         gen = Generator.new
         gen.export!(services, procsd: @procsd, options: opts)
@@ -32,6 +32,10 @@ module Procsd
         else
           say("App services were created and enabled. Run `start` to start them", :green)
         end
+
+        say "Note: add following line to the sudoers file (`$ sudo visudo`) if you don't " \
+          "want to type password each time for start/stop/restart commands:"
+        say generate_sudoers_rule(options["user"])
       else
         if options["or-restart"]
           restart
@@ -72,12 +76,9 @@ module Procsd
       preload!
       say_target_not_exists and return unless target_exist?
 
-      if target_enabled?
-        say "App target #{target_name} already enabled"
-      else
-        if execute %W(sudo systemctl enable #{target_name})
-          say("Enabled app target #{target_name}", :green)
-        end
+      say "Note: app target #{target_name} already enabled" if target_enabled?
+      if execute %W(sudo systemctl enable #{target_name})
+        say("Enabled app target #{target_name}", :green)
       end
     end
 
@@ -86,12 +87,9 @@ module Procsd
       preload!
       say_target_not_exists and return unless target_exist?
 
-      if !target_enabled?
-        say "App target #{target_name} already disabled"
-      else
-        if execute %W(sudo systemctl disable #{target_name})
-          say("Disabled app target #{target_name}", :green)
-        end
+      say "Note: app target #{target_name} already disabled" if !target_enabled?
+      if execute %W(sudo systemctl disable #{target_name})
+        say("Disabled app target #{target_name}", :green)
       end
     end
 
@@ -100,12 +98,10 @@ module Procsd
       preload!
       say_target_not_exists and return unless target_exist?
 
-      if target_active?
-        say "Already started/active (#{target_name})"
-      else
-        if execute %W(sudo systemctl start #{target_name})
-          say("Started app services (#{target_name})", :green)
-        end
+
+      say "Note: app target #{target_name} already started/active" if target_active?
+      if execute %W(sudo systemctl start #{target_name})
+        say("Started app services (#{target_name})", :green)
       end
     end
 
@@ -114,12 +110,9 @@ module Procsd
       preload!
       say_target_not_exists and return unless target_exist?
 
-      if !target_active?
-        say "Already stopped/inactive (#{target_name})"
-      else
-        if execute %W(sudo systemctl stop #{target_name})
-          say("Stopped app services (#{target_name})", :green)
-        end
+      say "Note: app target #{target_name} already stopped/inactive" if !target_active?
+      if execute %W(sudo systemctl stop #{target_name})
+        say("Stopped app services (#{target_name})", :green)
       end
     end
 
@@ -130,10 +123,10 @@ module Procsd
 
       # If one of the child services of a target has `ExecReload` and `ReloadPropagatedFrom`
       # options defined, then use `reload-or-restart` to call all services (not the main target)
-      # because https://github.com/systemd/systemd/issues/10638
+      # because of systemd bug https://github.com/systemd/systemd/issues/10638
       success =
-        if services.any? { |_, command| command["restart"] }
-          execute %w(sudo systemctl reload-or-restart) + services.keys
+        if has_reload?
+          execute %W(sudo systemctl reload-or-restart #{app_name}-* --all)
         else
           execute %W(sudo systemctl restart #{target_name})
         end
@@ -151,19 +144,12 @@ module Procsd
       say_target_not_exists and return unless target_exist?
 
       if options["short"]
-        command = %w(sudo systemctl list-units --no-pager --no-legend --all)
+        command = %w(systemctl list-units --no-pager --no-legend --all)
       else
-        command = %w(sudo systemctl status --no-pager --output short-iso)
+        command = %w(systemctl status --no-pager --output short-iso --all)
       end
 
-      if options["target"]
-        command << target_name
-      else
-        filtered = filter_services(service_name)
-        say("Can't find any services matching given name: #{service_name}", :red) and return if filtered.empty?
-        command += filtered
-      end
-
+      command << (options["target"] ? target_name : "#{app_name}-#{service_name}*")
       execute command
     end
 
@@ -176,17 +162,14 @@ module Procsd
     def logs(service_name = nil)
       preload!
 
-      command = %w(sudo journalctl --no-pager --all --no-hostname --output short-iso)
+      command = %w(journalctl --no-pager --no-hostname --output short-iso)
       command.push("-n", options.fetch("num", "100"))
       command.push("-f") if options["tail"]
       command.push("--system") if options["system"]
       command.push("--priority", options["priority"]) if options["priority"]
       command.push("--grep", "'" + options["grep"] + "'") if options["grep"]
 
-      filtered = filter_services(service_name)
-      say("Can't find any services matching given name: #{service_name}", :red) and return if filtered.empty?
-
-      filtered.each { |service| command.push("--unit", service) }
+      command.push("--unit", "#{app_name}-#{service_name}*")
       execute command
     end
 
@@ -195,7 +178,7 @@ module Procsd
       preload!
       say_target_not_exists and return unless target_exist?
 
-      execute %W(sudo systemctl list-dependencies #{target_name})
+      execute %W(systemctl list-dependencies #{target_name})
     end
 
     desc "--version, -v", "Print the version"
@@ -205,7 +188,23 @@ module Procsd
 
     private
 
-    def fetch_path
+    def generate_sudoers_rule(user)
+      commands = []
+      systemctl_path = `which systemctl`.strip
+
+      %w(start stop restart).each do |cmd|
+        commands << "#{systemctl_path} #{cmd} #{target_name}"
+      end
+      commands << "#{systemctl_path} reload-or-restart #{app_name}-\\* --all" if has_reload?
+
+      "#{user} ALL=NOPASSWD: #{commands.join(', ')}"
+    end
+
+    def has_reload?
+      services.any? { |_, command| command["restart"] }
+    end
+
+    def fetch_path_env
       # get value of the $PATH env variable including ~/.bashrc as well (-i flag)
       `/bin/bash -ilc 'echo $PATH'`.strip
     end
@@ -219,14 +218,6 @@ module Procsd
 
     def say_target_not_exists
       say("App target #{target_name} is not exists", :red)
-    end
-
-    def filter_services(service_name)
-      if service_name
-        services.keys.select { |s| s.include?("#{app_name}-#{service_name}") }
-      else
-        services.keys
-      end
     end
 
     def target_exist?
