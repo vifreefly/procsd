@@ -8,18 +8,30 @@ module Procsd
     map %w[--version -v] => :__print_version
 
     desc "create", "Create and enable app services"
-    option :user, aliases: :u, type: :string, required: true, banner: "$USER"
-    option :dir,  aliases: :d, type: :string, required: true, banner: "$PWD"
+    option :user, aliases: :u, type: :string, banner: "$USER"
+    option :dir,  aliases: :d, type: :string, banner: "$PWD"
     option :path, aliases: :p, type: :string, banner: "$PATH"
     option :'or-restart', type: :boolean, banner: "Create and start app services if not created yet, otherwise restart"
     def create
       preload!
 
       if !target_exist?
-        opts = options["path"] ? options : options.merge("path" => fetch_path_env)
+        opts = {
+          user: options["user"] || ENV["USER"],
+          dir: options["dir"] || ENV["PWD"],
+          path: options["path"] || fetch_path_env
+        }
+
+        opts.each do |key, value|
+          if value.nil? || value.empty?
+            say("Can't fetch value for --#{key}, please provide it as an argument", :red) and return
+          else
+            say "Value of the --#{key} option: #{value}"
+          end
+        end
 
         gen = Generator.new
-        gen.export!(services, procsd: @procsd, options: opts)
+        gen.export!(services, procsd: @procsd, options: options.merge opts)
 
         enable
         if execute %w(sudo systemctl daemon-reload)
@@ -97,7 +109,6 @@ module Procsd
     def start
       preload!
       say_target_not_exists and return unless target_exist?
-
 
       say "Note: app target #{target_name} already started/active" if target_active?
       if execute %W(sudo systemctl start #{target_name})
