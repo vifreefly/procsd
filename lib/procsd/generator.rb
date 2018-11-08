@@ -6,12 +6,12 @@ module Procsd
       File.dirname(__FILE__)
     end
 
-    def export!(services, procsd:, options:)
+    def export!(services, config:, options:)
       self.destination_root = "/tmp"
-      @procsd = procsd
-      say "Systemd directory: #{@procsd["systemd_dir"]}"
+      @config = config
+      say "Systemd directory: #{@config[:systemd_dir]}"
 
-      app_name = @procsd["app"]
+      app_name = @config[:app]
       target_name = "#{app_name}.target"
 
       services.each do |service_name, service_command|
@@ -19,8 +19,9 @@ module Procsd
           "target_name" => target_name,
           "id" => service_name.sub(".service", ""),
           "command" => service_command,
-          "environment" => @procsd["environment"]
+          "environment" => @config[:environment]
         )
+
         generate(service_name, service_config, type: :service)
       end
 
@@ -33,11 +34,11 @@ module Procsd
 
     private
 
-    def generate(filename, confing, type:)
-      template("templates/#{type}.erb", filename, confing)
+    def generate(filename, conf, type:)
+      template("templates/#{type}.erb", filename, conf)
 
       source_path = File.join(destination_root, filename)
-      dest_path = File.join(@procsd["systemd_dir"], filename)
+      dest_path = File.join(@config[:systemd_dir], filename)
       system "sudo", "mv", source_path, dest_path
     ensure
       File.delete(source_path) if File.exist? source_path

@@ -33,7 +33,7 @@ module Procsd
         end
 
         gen = Generator.new
-        gen.export!(services, procsd: @procsd, options: options.merge(opts))
+        gen.export!(services, config: @config, options: options.merge(opts))
 
         enable
         if execute %w(sudo systemctl daemon-reload)
@@ -243,7 +243,7 @@ module Procsd
     end
 
     def has_reload?
-      services.any? { |_, command| command["restart"] }
+      services.any? { |_, opts| opts["restart"] }
     end
 
     def fetch_path_env
@@ -267,7 +267,7 @@ module Procsd
     end
 
     def systemd_dir
-      @procsd["systemd_dir"]
+      @config[:systemd_dir]
     end
 
     def target_enabled?
@@ -283,15 +283,15 @@ module Procsd
     end
 
     def app_name
-      @procsd["app"]
+      @config[:app]
     end
 
     def services
       all = {}
-      @procfile.each do |process_name, process_command|
-        processes_count = @procsd["formation"][process_name] || 1
-        processes_count.times do |i|
-          all["#{app_name}-#{process_name}.#{i + 1}.service"] = process_command
+      @config[:processes].each do |process_name, opts|
+        opts["count"].times do |i|
+          commands = { "start" => opts["start"], "stop" => opts["stop"], "restart" => opts["restart"] }
+          all["#{app_name}-#{process_name}.#{i + 1}.service"] = commands
         end
       end
 
@@ -299,32 +299,52 @@ module Procsd
     end
 
     def preload!
-      raise ConfigurationError, "File Procfile doesn't exists" unless File.exist? "Procfile"
-      raise ConfigurationError, "File procsd.yml doesn't exists" unless File.exist? "procsd.yml"
+      @config = {}
 
-      @procfile = YAML.load_file("Procfile")
-      @procsd = YAML.load(ERB.new(File.read "procsd.yml").result)
-      raise ConfigurationError, "Missing app name in the procsd.yml file" unless @procsd["app"]
+      raise ConfigurationError, "Config file procsd.yml doesn't exists" unless File.exist? "procsd.yml"
+      begin
+        procsd = YAML.load(ERB.new(File.read "procsd.yml").result)
+      rescue => e
+        raise ConfigurationError, "Can't read procsd.yml: #{e.inspect}"
+      end
 
-      @procfile.each do |process_name, process_command|
-        if process_command.kind_of?(Hash)
-          unless process_command["start"]
-            raise ConfigurationError, "Missing start command for #{process_name} process in the Procfile"
-          end
-        else
-          @procfile[process_name] = { "start" => process_command }
+      raise ConfigurationError, "Missing app name in the procsd.yml file" unless procsd["app"]
+      @config[:app] = procsd["app"]
+
+      # If procsd.yml doesn't contains processes defined, try to read Procfile
+      unless procsd["processes"]
+        msg = "Procfile doesn't exists. Define processes in procsd.yml or create Procfile"
+        raise ConfigurationError, msg unless File.exist? "Procfile"
+        begin
+          procfile = YAML.load_file("Procfile")
+        rescue => e
+          raise ConfigurationError, "Can't read Procfile: #{e.inspect}"
         end
       end
 
-      if formation = @procsd["formation"]
-        @procsd["formation"] = formation.split(",").map { |f| f.split("=") }.to_h
-        @procsd["formation"].each { |k, v| @procsd["formation"][k] = v.to_i }
+      if procsd["formation"]
+        formation = procsd["formation"].split(",").map { |f| f.split("=") }.to_h
+        formation.each { |k, v| formation[k] = v.to_i }
       else
-        @procsd["formation"] = {}
+        formation = {}
       end
 
-      @procsd["environment"] ||= []
-      @procsd["systemd_dir"] ||= DEFAULT_SYSTEMD_DIR
+      processes = procsd["processes"] || procfile
+      processes.each do |process_name, opts|
+        if opts.kind_of?(Hash)
+          raise ConfigurationError, "Missing start command for `#{process_name}` process" unless opts["start"]
+        else
+          processes[process_name] = { "start" => opts }
+        end
+
+        unless processes[process_name]["count"]
+          processes[process_name]["count"] = formation[process_name] || 1
+        end
+      end
+
+      @config[:processes] = processes
+      @config[:environment] = procsd["environment"] || {}
+      @config[:systemd_dir] = procsd["systemd_dir"] || DEFAULT_SYSTEMD_DIR
     end
   end
 end

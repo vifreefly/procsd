@@ -26,6 +26,6 @@ StandardInput=null
 SyslogIdentifier=<%= config["id"] %>
 
 Environment="PATH=<%= config["path"] %>"
-<% config["environment"].each do |env| -%>
-Environment="<%= env %>"
+<% config["environment"].each do |key, value| -%>
+Environment="<%= key %>=<%= value %>"
 <% end -%>
