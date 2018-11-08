@@ -49,17 +49,17 @@ module Procsd
 
         sudoers_rule_content = generate_sudoers_rule(opts[:user])
         if options["add-to-sudoers"]
-          sudoers_dir = "/etc/sudoers.d"
-          sudoers_file_path = "#{sudoers_dir}/#{app_name}"
-          if Dir.exist?(sudoers_dir)
-            File.open("/tmp/#{app_name}", "w") { |f| f.puts sudoers_rule_content }
-            execute %W(sudo chown root:root /tmp/#{app_name})
-            execute %W(sudo chmod 0440 /tmp/#{app_name})
-            if execute %W(sudo mv /tmp/#{app_name} #{sudoers_file_path})
-              say("Sudoers file #{sudoers_file_path} was created", :green)
+          sudoers_file_temp_path = "/tmp/#{app_name}"
+          sudoers_file_dest_path = "#{SUDOERS_DIR}/#{app_name}"
+          if Dir.exist?(SUDOERS_DIR)
+            File.open(sudoers_file_temp_path, "w") { |f| f.puts sudoers_rule_content }
+            execute %W(sudo chown root:root #{sudoers_file_temp_path})
+            execute %W(sudo chmod 0440 #{sudoers_file_temp_path})
+            if execute %W(sudo mv #{sudoers_file_temp_path} #{sudoers_file_dest_path})
+              say("Sudoers file #{sudoers_file_dest_path} was created", :green)
             end
           else
-            say "Directory #{sudoers_dir} does not exist, sudoers file wan't created"
+            say "Directory #{SUDOERS_DIR} does not exist, sudoers file wan't created"
           end
         else
           say "Note: add following line to the sudoers file (`$ sudo visudo`) if you don't " \
@@ -85,19 +85,15 @@ module Procsd
 
         services.keys.push(target_name).each do |filename|
           path = File.join(systemd_dir, filename)
-          if File.exist? path
-            execute %W(sudo rm #{path})
-            say "Deleted #{path}"
-          end
+          execute %W(sudo rm #{path}) and say "Deleted #{path}" if File.exist? path
         end
 
         if execute %w(sudo systemctl daemon-reload)
           say("Reloaded configuraion (daemon-reload)", :green)
         end
-
         say("App services were stopped, disabled and removed", :green)
 
-        sudoers_file_path = "/etc/sudoers.d/#{app_name}"
+        sudoers_file_path = "#{SUDOERS_DIR}/#{app_name}"
         if File.exist?(sudoers_file_path)
           if yes?("Remove sudoers rule #{sudoers_file_path} ? (yes/no)")
             say("Sudoers file removed", :green) if execute %W(sudo rm #{sudoers_file_path})
