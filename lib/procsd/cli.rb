@@ -5,6 +5,7 @@ require_relative 'generator'
 module Procsd
   class CLI < Thor
     class ConfigurationError < StandardError; end
+    class ArgumentError < StandardError; end
     map %w[--version -v] => :__print_version
 
     desc "create", "Create and enable app services"
@@ -31,7 +32,7 @@ module Procsd
         end
 
         gen = Generator.new
-        gen.export!(services, procsd: @procsd, options: options.merge opts)
+        gen.export!(services, procsd: @procsd, options: options.merge(opts))
 
         enable
         if execute %w(sudo systemctl daemon-reload)
@@ -195,6 +196,18 @@ module Procsd
     desc "--version, -v", "Print the version"
     def __print_version
       puts VERSION
+    end
+
+    desc "config", "Show configuration. Available types: sudoers"
+    def config(name)
+      preload!
+
+      case name
+      when "sudoers"
+        say generate_sudoers_rule(ENV["USER"])
+      else
+        raise ArgumentError, "Wring type of argument: #{name}"
+      end
     end
 
     private
