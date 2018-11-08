@@ -8,7 +8,7 @@ Can we have something similar on the cheap Ubuntu VPS from DigitalOcean? Yes we 
 
 ## Getting started
 
-**Note:** latest version of Procsd is `0.3.0`. Since version `0.2.0` there are some breaking changes. Check the [CHANGELOG.md](CHANGELOG.md)
+**Note:** latest version of Procsd is `0.3.0`. Since version `0.2.0` there are some breaking changes. Check the [CHANGELOG.md](CHANGELOG.md). Run `$ gem update procsd` or `$ bundle update procsd` (if you have already installed procsd) to update to the latest version.
 
 > Install `procsd` first: `$ gem install procsd`. Required Ruby version is `>= 2.3.0`.
 
