@@ -8,6 +8,8 @@ Can we have something similar on the cheap Ubuntu VPS from DigitalOcean? Yes we 
 
 ## Getting started
 
+**Note:** latest version of Procsd is `0.3.0`. Since version `0.2.0` there are some breaking changes. Check the [CHANGELOG.md](CHANGELOG.md)
+
 > Install `procsd` first: `$ gem install procsd`. Required Ruby version is `>= 2.3.0`.
 
 Let's say you have following application's Procfile:
@@ -22,11 +24,12 @@ and you want to have one instance of web process && two instances of worker proc
 app: sample_app
 formation: web=1,worker=2
 environment:
-  - PORT=2500
-  - RAILS_ENV=production
-  - RAILS_LOG_TO_STDOUT=true
+  PORT: 2501
+  RAILS_ENV: production
+  RAILS_LOG_TO_STDOUT: true
 ```
-> The only required option in `procsd.yml` is `app` (application's name). Also you can provide custom Systemd directory path (`systemd_dir` option, default is _/etc/systemd/system_)
+
+> The only required option in `procsd.yml` is `app` (application name). Also you can provide custom Systemd directory path (`systemd_dir` option, default is _/etc/systemd/system_)
 
 Configuration is done.
 
@@ -36,9 +39,13 @@ Configuration is done.
 > Note: `create` command needs to provide a few arguments: _--user_ (name of the current user), _--dir_ (application's working directory) and `--path` (user's $PATH). Usually it's fine to provide them like on example below:
 
 ```
-deploy@server:~/sample_app$ procsd create -u $USER -d $PWD -p $PATH
+deploy@server:~/sample_app$ procsd create
 
+Value of the --user option: deploy
+Value of the --dir option: /home/deploy/sample_app
+Value of the --path option: /home/deploy/.rbenv/shims:/home/deploy/.rbenv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
 Systemd directory: /etc/systemd/system
+
       create  sample_app-web.1.service
       create  sample_app-worker.1.service
       create  sample_app-worker.2.service
@@ -47,7 +54,18 @@ Created symlink /etc/systemd/system/multi-user.target.wants/sample_app.target â†
 Enabled app target sample_app.target
 Reloaded configuraion (daemon-reload)
 App services were created and enabled. Run `start` to start them
+
+Note: add following line to the sudoers file (`$ sudo visudo`) if you don't want to type password each time for start/stop/restart commands:
+deploy ALL=NOPASSWD: /bin/systemctl start sample_app.target, /bin/systemctl stop sample_app.target, /bin/systemctl restart sample_app.target
 ```
+
+You can provide additional options for `create` command:
+* `--user` - name of the user, default is current _$USER_ env variable
+* `--dir` - application's working directory, default is current _$PWD_ env variable
+* `--path` - $PATH to include to the each service. Default is current _$PATH_ env variable
+* `--add-to-sudoers` - if option present, procsd will create sudoers rule `/etc/sudoers.d/app_name` allowing to start/stop/restart app services without password prompt.
+* `--or-restart` - if option present and servides already created, procsd will skip creation and instead call `restart` command
+
 
 ### Start application
 > Other control commands: `stop` and `restart`
@@ -120,7 +138,7 @@ deploy@server:~/sample_app$ procsd status
 2018-11-04T01:54:17+0400 sample_app-worker.2[8827]: 2018-11-03T21:54:17.716Z 8827 TID-gniahzm1r INFO: Starting processing, hit Ctrl-C to stop
 ```
 
-Also you can see status in a short format:
+Also you can see status in short format:
 
 ```
 deploy@server:~/sample_app$ procsd status --short
@@ -175,18 +193,19 @@ Systemd provides [a lot of possibilities](https://www.digitalocean.com/community
 $ procsd --help
 
 Commands:
-  procsd --version, -v                                         # Print the version
-  procsd create d, --dir=$PWD p, --path=$PATH u, --user=$USER  # Create and enable app services
-  procsd destroy                                               # Stop, disable and remove app services
-  procsd disable                                               # Disable app target
-  procsd enable                                                # Enable app target
-  procsd help [COMMAND]                                        # Describe available commands or one specific command
-  procsd list                                                  # List all app services
-  procsd logs                                                  # Show app services logs
-  procsd restart                                               # Restart app services
-  procsd start                                                 # Start app services
-  procsd status                                                # Show app services status
-  procsd stop                                                  # Stop app services
+  procsd --version, -v   # Print the version
+  procsd config          # Show configuration. Available types: sudoers
+  procsd create          # Create and enable app services
+  procsd destroy         # Stop, disable and remove app services
+  procsd disable         # Disable app target
+  procsd enable          # Enable app target
+  procsd help [COMMAND]  # Describe available commands or one specific command
+  procsd list            # List all app services
+  procsd logs            # Show app services logs
+  procsd restart         # Restart app services
+  procsd start           # Start app services
+  procsd status          # Show app services status
+  procsd stop            # Stop app services
 ```
 
 
@@ -209,30 +228,31 @@ Procsd following one rule: simplicity. For export it uses static service files (
 ```
 deploy@server:~/sample_app$ VERBOSE=true procsd logs -n 3
 
-> Executing command: journalctl --no-pager --all --no-hostname --output short-iso -n 3 --unit sample_app-web.1.service --unit sample_app-worker.1.service --unit sample_app-worker.2.service
+> Executing command: `journalctl --no-pager --no-hostname --all --output short-iso -n 3 --unit sample_app-*`
 
 -- Logs begin at Sun 2018-10-21 00:38:42 +04, end at Sun 2018-11-04 19:17:01 +04. --
 2018-11-04T19:11:59+0400 sample_app-worker.2[29907]: 2018-11-04T15:11:59.597Z 29907 TID-gne5aeyuz INFO: Upgrade to Sidekiq Pro for more features and support: http://sidekiq.org
 2018-11-04T19:11:59+0400 sample_app-worker.2[29907]: 2018-11-04T15:11:59.597Z 29907 TID-gne5aeyuz INFO: Booting Sidekiq 5.2.2 with redis options {:id=>"Sidekiq-server-PID-29907", :url=>nil}
 2018-11-04T19:11:59+0400 sample_app-worker.2[29907]: 2018-11-04T15:11:59.601Z 29907 TID-gne5aeyuz INFO: Starting processing, hit Ctrl-C to stop
 ```
-* You can use extended format of a Procfile to provide additional restart/stop commands for a process:
-> Keep in mind that syntax below is not supported by Foreman or Heroku
+* You can use extended format of processes commands inside `procsd.yml` to provide additional restart/stop commands for processes:
 
 > All possible options: `start`, `restart` and `stop`
+> If procsd.yml has `processes:` option defined, then content of Procfile will be ignored
 
 ```yml
-web:
-  start: bundle exec rails server -p $PORT
-  restart: bundle exec pumactl phased-restart
-worker: bundle exec sidekiq -e production
+processes:
+  web:
+    start: bundle exec rails server -p $PORT
+    restart: bundle exec pumactl phased-restart
+  worker: bundle exec sidekiq -e production
+app: sample_app
 ```
 
 Why? For example default Ruby on Rails application server [Puma](http://puma.io/) supports [Phased or Rolling restart](https://github.com/puma/puma/blob/master/docs/restart.md#normal-vs-hot-vs-phased-restart) feature. If you provide separate `restart`command for a process, then this command will be called (`$ procsd restart`) by Systemd instead of just killing and starting process again.
 
 
 ## ToDo
-* Add Capistrano integration examples
 * Optional possibility to generate Ngnix config (with out-of-box SSL using [Certbot](https://certbot.eff.org/lets-encrypt/ubuntubionic-nginx)) for an application to use Ngnix as a proxy and serve static files
 * Add integration with [Inspeqtor](https://github.com/mperham/inspeqtor) to monitor application services and get alert notifications if something happened
 
