@@ -194,7 +194,7 @@ module Procsd
     def logs(service_name = nil)
       preload!
 
-      command = %w(journalctl --no-pager --no-hostname --output short-iso)
+      command = %w(journalctl --no-pager --no-hostname --all --output short-iso)
       command.push("-n", options.fetch("num", "100"))
       command.push("-f") if options["tail"]
       command.push("--system") if options["system"]
