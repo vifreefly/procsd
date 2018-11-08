@@ -8,9 +8,9 @@ Can we have something similar on the cheap Ubuntu VPS from DigitalOcean? Yes we 
 
 ## Getting started
 
-**Note:** latest version of Procsd is `0.3.0`. Since version `0.2.0` there are some breaking changes. Check the [CHANGELOG.md](CHANGELOG.md). Run `$ gem update procsd` or `$ bundle update procsd` (if you have already installed procsd) to update to the latest version.
+> **Note:** latest version of Procsd is `0.3.0`. Since version `0.2.0` there are some breaking changes. Check the [CHANGELOG.md](CHANGELOG.md). To update to the latest version, run `$ gem update procsd` or `$ bundle update procsd` (if you have already installed procsd).
 
-> Install `procsd` first: `$ gem install procsd`. Required Ruby version is `>= 2.3.0`.
+Install `procsd` first: `$ gem install procsd`. Required Ruby version is `>= 2.3.0`.
 
 Let's say you have following application's Procfile:
 
@@ -35,8 +35,6 @@ Configuration is done.
 
 ### Create an application (export to Systemd)
 > To disable and remove application from Systemd there is command `$ procsd destroy`.
-
-> Note: `create` command needs to provide a few arguments: _--user_ (name of the current user), _--dir_ (application's working directory) and `--path` (user's $PATH). Usually it's fine to provide them like on example below:
 
 ```
 deploy@server:~/sample_app$ procsd create
@@ -63,7 +61,7 @@ You can provide additional options for `create` command:
 * `--user` - name of the user, default is current _$USER_ env variable
 * `--dir` - application's working directory, default is current _$PWD_ env variable
 * `--path` - $PATH to include to the each service. Default is current _$PATH_ env variable
-* `--add-to-sudoers` - if option present, procsd will create sudoers rule `/etc/sudoers.d/app_name` allowing to start/stop/restart app services without password prompt.
+* `--add-to-sudoers` - if option present, procsd will create sudoers rule file `/etc/sudoers.d/app_name` which allow to start/stop/restart app services without a password prompt (passwordless sudo).
 * `--or-restart` - if option present and servides already created, procsd will skip creation and instead call `restart` command
 
 
@@ -235,9 +233,10 @@ deploy@server:~/sample_app$ VERBOSE=true procsd logs -n 3
 2018-11-04T19:11:59+0400 sample_app-worker.2[29907]: 2018-11-04T15:11:59.597Z 29907 TID-gne5aeyuz INFO: Booting Sidekiq 5.2.2 with redis options {:id=>"Sidekiq-server-PID-29907", :url=>nil}
 2018-11-04T19:11:59+0400 sample_app-worker.2[29907]: 2018-11-04T15:11:59.601Z 29907 TID-gne5aeyuz INFO: Starting processing, hit Ctrl-C to stop
 ```
-* You can use extended format of processes commands inside `procsd.yml` to provide additional restart/stop commands for processes:
+* You can use extended format of processes commands inside `procsd.yml` to provide additional restart/stop commands for each process:
 
 > All possible options: `start`, `restart` and `stop`
+
 > If procsd.yml has `processes:` option defined, then content of Procfile will be ignored
 
 ```yml
