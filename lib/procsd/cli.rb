@@ -13,6 +13,7 @@ module Procsd
     option :dir,  aliases: :d, type: :string, banner: "$PWD"
     option :path, aliases: :p, type: :string, banner: "$PATH"
     option :'or-restart', type: :boolean, banner: "Create and start app services if not created yet, otherwise restart"
+    option :'add-to-sudoers', type: :boolean, banner: "Create sudoers rule at /etc/sudoers.d/app_name to allow manage app target without password prompt"
     def create
       preload!
 
@@ -46,9 +47,25 @@ module Procsd
           say("App services were created and enabled. Run `start` to start them", :green)
         end
 
-        say "Note: add following line to the sudoers file (`$ sudo visudo`) if you don't " \
-          "want to type password each time for start/stop/restart commands:"
-        say generate_sudoers_rule(options["user"])
+        sudoers_rule_content = generate_sudoers_rule(opts[:user])
+        if options["add-to-sudoers"]
+          sudoers_dir = "/etc/sudoers.d"
+          sudoers_file_path = "#{sudoers_dir}/#{app_name}"
+          if Dir.exist?(sudoers_dir)
+            File.open("/tmp/#{app_name}", "w") { |f| f.puts sudoers_rule_content }
+            execute %W(sudo chown root:root /tmp/#{app_name})
+            execute %W(sudo chmod 0440 /tmp/#{app_name})
+            if execute %W(sudo mv /tmp/#{app_name} #{sudoers_file_path})
+              say("Sudoers file #{sudoers_file_path} was created", :green)
+            end
+          else
+            say "Directory #{sudoers_dir} does not exist, sudoers file wan't created"
+          end
+        else
+          say "Note: add following line to the sudoers file (`$ sudo visudo`) if you don't " \
+            "want to type password each time for start/stop/restart commands:"
+          puts sudoers_rule_content
+        end
       else
         if options["or-restart"]
           restart
@@ -79,6 +96,13 @@ module Procsd
         end
 
         say("App services were stopped, disabled and removed", :green)
+
+        sudoers_file_path = "/etc/sudoers.d/#{app_name}"
+        if File.exist?(sudoers_file_path)
+          if yes?("Remove sudoers rule #{sudoers_file_path} ? (yes/no)")
+            say("Sudoers file removed", :green) if execute %W(sudo rm #{sudoers_file_path})
+          end
+        end
       else
         say_target_not_exists
       end
@@ -216,9 +240,7 @@ module Procsd
       commands = []
       systemctl_path = `which systemctl`.strip
 
-      %w(start stop restart).each do |cmd|
-        commands << "#{systemctl_path} #{cmd} #{target_name}"
-      end
+      %w(start stop restart).each { |cmd| commands << "#{systemctl_path} #{cmd} #{target_name}" }
       commands << "#{systemctl_path} reload-or-restart #{app_name}-\\* --all" if has_reload?
 
       "#{user} ALL=NOPASSWD: #{commands.join(', ')}"

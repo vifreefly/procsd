@@ -39,6 +39,8 @@ module Procsd
       source_path = File.join(destination_root, filename)
       dest_path = File.join(@procsd["systemd_dir"], filename)
       system "sudo", "mv", source_path, dest_path
+    ensure
+      File.delete(source_path) if File.exist? source_path
     end
   end
 end
