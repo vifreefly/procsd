@@ -301,6 +301,9 @@ module Procsd
     def preload!
       @config = {}
 
+      unless system("which", "systemctl", [:out, :err]=>"/dev/null")
+        raise ConfigurationError, "Your OS doesn't has systemctl executable available"
+      end
       raise ConfigurationError, "Config file procsd.yml doesn't exists" unless File.exist? "procsd.yml"
       begin
         procsd = YAML.load(ERB.new(File.read "procsd.yml").result)
