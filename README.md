@@ -10,6 +10,8 @@ Can we have something similar on the cheap Ubuntu VPS from DigitalOcean? Yes we 
 
 > **Note:** latest version of Procsd is `0.3.0`. Since version `0.2.0` there are some breaking changes. Check the [CHANGELOG.md](CHANGELOG.md). To update to the latest version, run `$ gem update procsd` or `$ bundle update procsd` (if you have already installed procsd).
 
+> **Note:** check recently added Capistrano integration: [vifreefly/capistrano-procsd](https://github.com/vifreefly/capistrano-procsd)
+
 Install `procsd` first: `$ gem install procsd`. Required Ruby version is `>= 2.3.0`.
 
 Let's say you have following application's Procfile:
@@ -249,6 +251,10 @@ app: sample_app
 ```
 
 Why? For example default Ruby on Rails application server [Puma](http://puma.io/) supports [Phased or Rolling restart](https://github.com/puma/puma/blob/master/docs/restart.md#normal-vs-hot-vs-phased-restart) feature. If you provide separate `restart`command for a process, then this command will be called (`$ procsd restart`) by Systemd instead of just killing and starting process again.
+
+## Capistrano integration
+
+https://github.com/vifreefly/capistrano-procsd
 
 
 ## ToDo
