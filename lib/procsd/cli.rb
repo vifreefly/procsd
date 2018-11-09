@@ -6,7 +6,6 @@ module Procsd
   class CLI < Thor
     class ConfigurationError < StandardError; end
     class ArgumentError < StandardError; end
-    map %w[--version -v] => :__print_version
 
     desc "create", "Create and enable app services"
     option :user, aliases: :u, type: :string, banner: "$USER"
@@ -15,6 +14,9 @@ module Procsd
     option :'or-restart', type: :boolean, banner: "Create and start app services if not created yet, otherwise restart"
     option :'add-to-sudoers', type: :boolean, banner: "Create sudoers rule at /etc/sudoers.d/app_name to allow manage app target without password prompt"
     def create
+      unless system("which", "systemctl", [:out, :err]=>"/dev/null")
+        raise ConfigurationError, "Your OS doesn't has systemctl executable available"
+      end
       preload!
 
       if !target_exist?
@@ -213,11 +215,6 @@ module Procsd
       execute %W(systemctl list-dependencies #{target_name})
     end
 
-    desc "--version, -v", "Print the version"
-    def __print_version
-      puts VERSION
-    end
-
     desc "config", "Show configuration. Available types: sudoers"
     def config(name)
       preload!
@@ -228,6 +225,29 @@ module Procsd
       else
         raise ArgumentError, "Wring type of argument: #{name}"
       end
+    end
+
+    map exec: :__exec
+    desc "exec", "Run app process"
+    option :env, type: :boolean, banner: "Require environment defined in procsd.yml"
+    def __exec(process_name)
+      preload!
+
+      start_cmd = @config[:processes].dig(process_name, "start")
+      raise ArgumentError, "Process is not defined: #{process_name}" unless start_cmd
+
+      if options["env"]
+        @config[:environment].each { |k, v| @config[:environment][k] = v.to_s }
+        exec @config[:environment], start_cmd
+      else
+        exec start_cmd
+      end
+    end
+
+    map %w[--version -v] => :__print_version
+    desc "--version, -v", "Print the version"
+    def __print_version
+      puts VERSION
     end
 
     private
@@ -301,9 +321,6 @@ module Procsd
     def preload!
       @config = {}
 
-      unless system("which", "systemctl", [:out, :err]=>"/dev/null")
-        raise ConfigurationError, "Your OS doesn't has systemctl executable available"
-      end
       raise ConfigurationError, "Config file procsd.yml doesn't exists" unless File.exist? "procsd.yml"
       begin
         procsd = YAML.load(ERB.new(File.read "procsd.yml").result)
