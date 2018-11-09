@@ -14,7 +14,7 @@ module Procsd
     option :'or-restart', type: :boolean, banner: "Create and start app services if not created yet, otherwise restart"
     option :'add-to-sudoers', type: :boolean, banner: "Create sudoers rule at /etc/sudoers.d/app_name to allow manage app target without password prompt"
     def create
-      unless system("which", "systemctl", [:out, :err]=>"/dev/null")
+      unless system("which", "systemctl", [:out, :err] => "/dev/null")
         raise ConfigurationError, "Your OS doesn't has systemctl executable available"
       end
       preload!
@@ -184,7 +184,7 @@ module Procsd
       end
 
       command << (options["target"] ? target_name : "#{app_name}-#{service_name}*")
-      execute command
+      execute command, type: :exec
     end
 
     desc "logs", "Show app services logs"
@@ -204,7 +204,7 @@ module Procsd
       command.push("--grep", "'" + options["grep"] + "'") if options["grep"]
 
       command.push("--unit", "#{app_name}-#{service_name}*")
-      execute command
+      execute command, type: :exec
     end
 
     desc "list", "List all app services"
@@ -212,7 +212,8 @@ module Procsd
       preload!
       say_target_not_exists and return unless target_exist?
 
-      execute %W(systemctl list-dependencies #{target_name})
+      command = %W(systemctl list-dependencies #{target_name})
+      execute command, type: :exec
     end
 
     desc "config", "Show configuration. Available types: sudoers"
@@ -271,11 +272,14 @@ module Procsd
       `/bin/bash -ilc 'echo $PATH'`.strip
     end
 
-    def execute(command)
-      trap("INT") { puts "\nInterrupted" ; exit 130 }
-
+    def execute(command, type: :system)
       say("> Executing command: `#{command.join(' ')}`", :yellow) if ENV["VERBOSE"] == "true"
-      system *command
+      case type
+      when :system
+        system *command
+      when :exec
+        exec *command
+      end
     end
 
     def say_target_not_exists
