@@ -213,11 +213,13 @@ Commands:
 
 [Foreman](http://ddollar.github.io/foreman/) itself designed for _development_ (not production) usage only and doing it great. Yes, Foreman allows to [export](http://ddollar.github.io/foreman/#EXPORTING) Procfile to the Systemd, but that's all. After export you have to manually use `systemctl` and `journalctl` to manage/check exported services. Procsd not only exports application, but provides [simple commands](#all-available-commands) to manage exported target.
 
-There is another difference in the export logic. Foreman systemd export uses [dymamic](https://fedoramagazine.org/systemd-template-unit-files/) services templates and as a result generates a lot of files/folders in the systemd directory even for a simple application.
+* Foreman systemd export uses [dymamic](https://fedoramagazine.org/systemd-template-unit-files/) services templates and as a result generates quite a lot of files/folders in the systemd directory even for a simple application.
 
-Services names contains [$PORT variable](http://ddollar.github.io/foreman/#PROCFILE) at the end. If Procfile has multiple processes, each exported service will have following naming format: `<app_name>-<process_name>@<port_varible_number += 100>.service` (and it's [undocumented](http://ddollar.github.io/foreman/#SYSTEMD-EXPORT) logic). For example for Procfile and formation (_web=1, worker=2_) above, exported services with Foreman will be: `sample_app-web@2500.service`, `sample_app-worker@2600.service` and `sample_app-worker@2601.service`. My opinion about this approach: it's complicated. Why is there PORT variable, which is also incremented for each service? How I'm supposed to remember all these services names to manage or check services status/logs (it's required to provide full names of services for systemctl/journalctl)?
+* Services generated using Foreman contain [$PORT variable](http://ddollar.github.io/foreman/#PROCFILE) in their names (and it's [undocumented](http://ddollar.github.io/foreman/#SYSTEMD-EXPORT) logic). For example for Procfile and formation `web=1,worker=2` (from example above), exported services with Foreman will be: `sample_app-web@2500.service`, `sample_app-worker@2600.service` and `sample_app-worker@2601.service`. My opinion about this approach: it's complicated. Why is there required PORT variable in the services names? Procsd following one rule: simplicity. For export it uses static service files (that means for each process will be generated it's own service file) and services names have predictable, Heroku-like names.
 
-Procsd following one rule: simplicity. For export it uses static service files (that means for each process will be generated it's own service file) and services names have predictable, Heroku-like names.
+* Procsd export can provide additional stop/restart commands for each service (see _Notes_ below).
+
+* To delete existing app services from Systemd, there is `procsd destroy` command. It is doing the following: stop services if they are running, delete all required systemd files from systemd directory, and restart systemd (`daemon-reload`). This command especially useful while testing, when you need frequently create/update configuration.
 
 
 ## Notes
