@@ -37,10 +37,11 @@ module Procsd
         gen = Generator.new
         gen.export!(services, config: @config, options: options.merge(opts))
 
-        enable
         if execute %w(sudo systemctl daemon-reload)
           say("Reloaded configuraion (daemon-reload)", :green)
         end
+
+        enable
 
         if options["or-restart"]
           start
@@ -93,6 +94,7 @@ module Procsd
         if execute %w(sudo systemctl daemon-reload)
           say("Reloaded configuraion (daemon-reload)", :green)
         end
+
         say("App services were stopped, disabled and removed", :green)
 
         sudoers_file_path = "#{SUDOERS_DIR}/#{app_name}"
