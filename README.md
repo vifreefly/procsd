@@ -2,9 +2,9 @@
 
 I do like the way how simple is managing of application processes in production on Heroku with [Procfile](https://devcenter.heroku.com/articles/procfile). How easily can be accessed application logs with [heroku logs](https://devcenter.heroku.com/articles/logging) command. Just type `heroku create` and you're good to go.
 
-Can we have something similar on the cheap Ubuntu VPS from DigitalOcean? Yes we can, all we need is a Systemd wrapper which allows to export application processes from Procfile to system services, and control them/check status/access logs using simple commands.
+Can we have something similar on the cheap Ubuntu VPS from DigitalOcean? Yes we can, all we need is a **systemd wrapper** which allows to export application processes from Procfile to system services, and control them/check status/access logs using simple commands.
 
-> These days most of Linux distributions (including Ubuntu) has Systemd as a default system processes manager. That's why it is a good idea to use Systemd for managing application processes in production (for simple cases).
+> These days most of Linux distributions (including Ubuntu) has systemd as a default system processes manager. That's why it is a good idea to use systemd for managing application processes in production (for simple cases).
 
 ## Getting started
 
@@ -64,7 +64,7 @@ You can provide additional options for `create` command:
 * `--dir` - application's working directory, default is current _$PWD_ env variable
 * `--path` - $PATH to include to the each service. Default is current _$PATH_ env variable
 * `--add-to-sudoers` - if option present, procsd will create sudoers rule file `/etc/sudoers.d/app_name` which allow to start/stop/restart app services without a password prompt (passwordless sudo).
-* `--or-restart` - if option present and servides already created, procsd will skip creation and instead call `restart` command
+* `--or-restart` - if option provided and services already created, procsd will skip creation and call instead `restart` command. Otherwise (if services are not present), they will be created and (in additional) started.
 
 
 ### Start application
