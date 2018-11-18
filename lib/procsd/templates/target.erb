@@ -1,5 +1,5 @@
 [Unit]
-Wants=<%= config["services"].join(" ") %>
+Wants=<%= config["wants"] %>
 
 [Install]
 WantedBy=multi-user.target

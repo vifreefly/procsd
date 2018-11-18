@@ -1,5 +1,6 @@
 require 'dotenv/load'
 require 'thor'
+require 'erb'
 require 'procsd/version'
 
 module Procsd

@@ -1,4 +1,25 @@
 # CHANGELOG
+## 0.4.0
+* **Breaking change:** commands in extended processes syntax were renamed from start/restart/stop to ExecStart/ExecReload/ExecStop:
+
+Was:
+```yml
+processes:
+  web:
+    start: bundle exec rails server -p $PORT
+    restart: bundle exec pumactl phased-restart
+```
+
+Now:
+```yml
+processes:
+  web:
+    ExecStart: bundle exec rails server -p $PORT
+    ExecReload: bundle exec pumactl phased-restart
+```
+
+* Added new command `exec` to run one of the defined processes for development purposes. Example: `$ procsd exec web`.
+
 ## 0.3.0
 * **Breaking change:** `.procsd.yml` renamed to `procsd.yml` (without dot)
 * **Breaking change:** `environment` option in the procsd.yml now has hash format, not array:

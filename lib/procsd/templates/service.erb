@@ -1,7 +1,7 @@
 [Unit]
 Requires=network.target
 PartOf=<%= config["target_name"] %>
-<% if config["command"]["restart"] -%>
+<% if config["commands"]["ExecReload"] -%>
 ReloadPropagatedFrom=<%= config["target_name"] %>
 <% end -%>
 
@@ -10,20 +10,20 @@ Type=simple
 User=<%= config["user"] %>
 WorkingDirectory=<%= config["dir"] %>
 
-ExecStart=/bin/bash -lc '<%= config["command"]["start"] %>'
-<% if stop = config["command"]["stop"] -%>
+ExecStart=/bin/bash -lc '<%= config["commands"]["ExecStart"] %>'
+<% if stop = config["commands"]["ExecStop"] -%>
 ExecStop=/bin/bash -lc '<%= stop %>'
 <% end -%>
-<% if config["command"]["restart"] -%>
-ExecReload=/bin/bash -lc '<%= config["command"]["restart"] %>'
+<% if reload = config["commands"]["ExecReload"] -%>
+ExecReload=/bin/bash -lc '<%= reload %>'
 <% end -%>
 
 Restart=always
 RestartSec=1
-TimeoutStopSec=15
+TimeoutStopSec=30
 KillMode=mixed
 StandardInput=null
-SyslogIdentifier=<%= config["id"] %>
+SyslogIdentifier=%n
 
 Environment="PATH=<%= config["path"] %>"
 <% config["environment"].each do |key, value| -%>

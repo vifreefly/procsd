@@ -230,7 +230,7 @@ Commands:
 ```
 deploy@server:~/sample_app$ VERBOSE=true procsd logs -n 3
 
-> Executing command: `journalctl --no-pager --no-hostname --all --output short-iso -n 3 --unit sample_app-*`
+Execute: journalctl --no-pager --no-hostname --all --output short-iso -n 3 --unit sample_app-*
 
 -- Logs begin at Sun 2018-10-21 00:38:42 +04, end at Sun 2018-11-04 19:17:01 +04. --
 2018-11-04T19:11:59+0400 sample_app-worker.2[29907]: 2018-11-04T15:11:59.597Z 29907 TID-gne5aeyuz INFO: Upgrade to Sidekiq Pro for more features and support: http://sidekiq.org
@@ -239,20 +239,20 @@ deploy@server:~/sample_app$ VERBOSE=true procsd logs -n 3
 ```
 * You can use extended format of processes commands inside `procsd.yml` to provide additional restart/stop commands for each process:
 
-> All possible options: `start`, `restart` and `stop`
+> All possible options: `ExecStart`, `ExecReload` and `ExecStop`
 
 > If procsd.yml has `processes:` option defined, then content of Procfile will be ignored
 
 ```yml
+app: sample_app
 processes:
   web:
-    start: bundle exec rails server -p $PORT
-    restart: bundle exec pumactl phased-restart
+    ExecStart: bundle exec rails server -p $PORT
+    ExecReload: bundle exec pumactl phased-restart
   worker: bundle exec sidekiq -e production
-app: sample_app
 ```
 
-Why? For example default Ruby on Rails application server [Puma](http://puma.io/) supports [Phased or Rolling restart](https://github.com/puma/puma/blob/master/docs/restart.md#normal-vs-hot-vs-phased-restart) feature. If you provide separate `restart`command for a process, then this command will be called (`$ procsd restart`) by Systemd instead of just killing and starting process again.
+Why? For example default Ruby on Rails application server [Puma](http://puma.io/) supports [Phased or Rolling restart](https://github.com/puma/puma/blob/master/docs/restart.md#normal-vs-hot-vs-phased-restart) feature. If you provide separate `ExecReload`command for a process, then this command will be called while executing `$ procsd restart` by systemd instead of just killing and starting process again.
 
 ## Capistrano integration
 

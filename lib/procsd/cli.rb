@@ -1,5 +1,4 @@
 require 'yaml'
-require 'erb'
 require_relative 'generator'
 
 module Procsd
@@ -8,9 +7,9 @@ module Procsd
     class ArgumentError < StandardError; end
 
     desc "create", "Create and enable app services"
-    option :user, aliases: :u, type: :string, banner: "$USER"
-    option :dir,  aliases: :d, type: :string, banner: "$PWD"
-    option :path, aliases: :p, type: :string, banner: "$PATH"
+    option :user, aliases: :u, type: :string, banner: "$USER", default: ENV["USER"]
+    option :dir,  aliases: :d, type: :string, banner: "$PWD", default: ENV["PWD"]
+    option :path, aliases: :p, type: :string, banner: "$PATH", default: `/bin/bash -ilc 'echo $PATH'`.strip
     option :'or-restart', type: :boolean, banner: "Create and start app services if not created yet, otherwise restart"
     option :'add-to-sudoers', type: :boolean, banner: "Create sudoers rule at /etc/sudoers.d/app_name to allow manage app target without password prompt"
     def create
@@ -20,22 +19,17 @@ module Procsd
       preload!
 
       if !target_exist?
-        opts = {
-          user: options["user"] || ENV["USER"],
-          dir: options["dir"] || ENV["PWD"],
-          path: options["path"] || fetch_path_env
-        }
-
-        opts.each do |key, value|
+        options.each do |key, value|
+          next unless %w(user dir path).include? key
           if value.nil? || value.empty?
             say("Can't fetch value for --#{key}, please provide it as an argument", :red) and return
           else
-            say "Value of the --#{key} option: #{value}"
+            say("Value of the --#{key} option: #{value}", :yellow)
           end
         end
 
-        gen = Generator.new
-        gen.export!(services, config: @config, options: options.merge(opts))
+        generator = Generator.new(@config, options)
+        generator.generate_export(save: true)
 
         if execute %w(sudo systemctl daemon-reload)
           say("Reloaded configuraion (daemon-reload)", :green)
@@ -50,24 +44,18 @@ module Procsd
           say("App services were created and enabled. Run `start` to start them", :green)
         end
 
-        sudoers_rule_content = generate_sudoers_rule(opts[:user])
         if options["add-to-sudoers"]
-          sudoers_file_temp_path = "/tmp/#{app_name}"
-          sudoers_file_dest_path = "#{SUDOERS_DIR}/#{app_name}"
           if Dir.exist?(SUDOERS_DIR)
-            File.open(sudoers_file_temp_path, "w") { |f| f.puts sudoers_rule_content }
-            execute %W(sudo chown root:root #{sudoers_file_temp_path})
-            execute %W(sudo chmod 0440 #{sudoers_file_temp_path})
-            if execute %W(sudo mv #{sudoers_file_temp_path} #{sudoers_file_dest_path})
-              say("Sudoers file #{sudoers_file_dest_path} was created", :green)
+            if generator.generate_sudoers(options["user"], has_reload: has_reload?, save: true)
+              say("Sudoers file #{SUDOERS_DIR}/#{app_name} was created", :green)
             end
           else
-            say "Directory #{SUDOERS_DIR} does not exist, sudoers file wan't created"
+            say("Directory #{SUDOERS_DIR} does not exists, sudoers file wasn't created", :red)
           end
         else
           say "Note: add following line to the sudoers file (`$ sudo visudo`) if you don't " \
             "want to type password each time for start/stop/restart commands:"
-          puts sudoers_rule_content
+          puts generator.generate_sudoers(options["user"], has_reload: has_reload?)
         end
       else
         if options["or-restart"]
@@ -86,22 +74,19 @@ module Procsd
         stop
         disable
 
-        services.keys.push(target_name).each do |filename|
+        units.each do |filename|
           path = File.join(systemd_dir, filename)
-          execute %W(sudo rm #{path}) and say "Deleted #{path}" if File.exist? path
+          execute %W(sudo rm #{path}) and say "Deleted: #{path}" if File.exist?(path)
         end
 
         if execute %w(sudo systemctl daemon-reload)
           say("Reloaded configuraion (daemon-reload)", :green)
         end
-
         say("App services were stopped, disabled and removed", :green)
 
         sudoers_file_path = "#{SUDOERS_DIR}/#{app_name}"
-        if File.exist?(sudoers_file_path)
-          if yes?("Remove sudoers rule #{sudoers_file_path} ? (yes/no)")
-            say("Sudoers file removed", :green) if execute %W(sudo rm #{sudoers_file_path})
-          end
+        if system "sudo", "test", "-e", sudoers_file_path
+          say("Sudoers file removed", :green) if execute %W(sudo rm #{sudoers_file_path})
         end
       else
         say_target_not_exists
@@ -218,7 +203,7 @@ module Procsd
       execute command, type: :exec
     end
 
-    desc "config", "Show configuration. Available types: sudoers"
+    desc "config", "Print config files based on current settings. Available types: sudoers"
     def config(name)
       preload!
 
@@ -236,7 +221,7 @@ module Procsd
     def __exec(process_name)
       preload!
 
-      start_cmd = @config[:processes].dig(process_name, "start")
+      start_cmd = @config[:processes].dig(process_name, "commands", "ExecStart")
       raise ArgumentError, "Process is not defined: #{process_name}" unless start_cmd
 
       if options["env"]
@@ -255,27 +240,21 @@ module Procsd
 
     private
 
-    def generate_sudoers_rule(user)
-      commands = []
-      systemctl_path = `which systemctl`.strip
-
-      %w(start stop restart).each { |cmd| commands << "#{systemctl_path} #{cmd} #{target_name}" }
-      commands << "#{systemctl_path} reload-or-restart #{app_name}-\\* --all" if has_reload?
-
-      "#{user} ALL=NOPASSWD: #{commands.join(', ')}"
-    end
-
     def has_reload?
-      services.any? { |_, opts| opts["restart"] }
+      @config[:processes].any? { |name, values| values.dig("commands", "ExecReload") }
     end
 
-    def fetch_path_env
-      # get value of the $PATH env variable including ~/.bashrc as well (-i flag)
-      `/bin/bash -ilc 'echo $PATH'`.strip
+    def units
+      all = [target_name]
+      @config[:processes].each do |name, values|
+        values["size"].times { |i| all << "#{app_name}-#{name}.#{i + 1}.service" }
+      end
+
+      all
     end
 
     def execute(command, type: :system)
-      say("> Executing command: `#{command.join(' ')}`", :yellow) if ENV["VERBOSE"] == "true"
+      say("Execute: #{command.join(' ')}", :yellow) if ENV["VERBOSE"] == "true"
       case type
       when :system
         system *command
@@ -312,20 +291,8 @@ module Procsd
       @config[:app]
     end
 
-    def services
-      all = {}
-      @config[:processes].each do |process_name, opts|
-        opts["count"].times do |i|
-          commands = { "start" => opts["start"], "stop" => opts["stop"], "restart" => opts["restart"] }
-          all["#{app_name}-#{process_name}.#{i + 1}.service"] = commands
-        end
-      end
-
-      all
-    end
-
     def preload!
-      @config = {}
+      @config = { processes: {}}
 
       raise ConfigurationError, "Config file procsd.yml doesn't exists" unless File.exist? "procsd.yml"
       begin
@@ -358,17 +325,15 @@ module Procsd
       processes = procsd["processes"] || procfile
       processes.each do |process_name, opts|
         if opts.kind_of?(Hash)
-          raise ConfigurationError, "Missing start command for `#{process_name}` process" unless opts["start"]
+          raise ConfigurationError, "Missing ExecStart command for `#{process_name}` process" unless opts["ExecStart"]
+          @config[:processes][process_name] = { "commands" => opts }
         else
-          processes[process_name] = { "start" => opts }
+          @config[:processes][process_name] = { "commands" => { "ExecStart" => opts }}
         end
 
-        unless processes[process_name]["count"]
-          processes[process_name]["count"] = formation[process_name] || 1
-        end
+        @config[:processes][process_name]["size"] = formation[process_name] || 1
       end
 
-      @config[:processes] = processes
       @config[:environment] = procsd["environment"] || {}
       @config[:systemd_dir] = procsd["systemd_dir"] || DEFAULT_SYSTEMD_DIR
     end
