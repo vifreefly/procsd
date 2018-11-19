@@ -272,7 +272,7 @@ module Procsd
 
         # Reference: https://certbot.eff.org/docs/using.html#certbot-command-line-options
         if certbot = nginx["certbot"]
-          command = %w(sudo certbot --agree-tos --no-eff-email --non-interactive --nginx)
+          command = %w(sudo certbot --agree-tos --no-eff-email --redirect --non-interactive --nginx)
           nginx["server_name"].split(" ").map(&:strip).each do |domain|
             command.push("-d", domain)
           end
