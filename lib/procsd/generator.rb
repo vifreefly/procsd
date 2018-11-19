@@ -9,12 +9,12 @@ module Procsd
       @target_name = "#{app_name}.target"
     end
 
-    def generate_export(save: false)
+    def generate_units(save: false)
       services = {}
       @config[:processes].each do |name, values|
         commands = values["commands"]
         size = values["size"]
-        content = generate_from("service", @options.merge(
+        content = generate_template("service", @options.merge(
           "target_name" => target_name,
           "commands" => commands,
           "environment" => @config[:environment]
@@ -30,15 +30,15 @@ module Procsd
           values[:size].times do |i|
             unit_name = "#{app_name}-#{service_name}.#{i + 1}.service"
             wants << unit_name
-            write_unit!(unit_name, values[:content])
+            write_file!(File.join(@config[:systemd_dir], unit_name), values[:content])
           end
         end
 
-        target_content = generate_from("target", {
+        target_content = generate_template("target", {
           "app" => app_name,
           "wants" => wants.join(" ")
         })
-        write_unit!(target_name, target_content)
+        write_file!(File.join(@config[:systemd_dir], target_name), target_content)
       else
         services
       end
@@ -65,27 +65,46 @@ module Procsd
       end
     end
 
+    def generate_nginx_conf(save: false)
+      root_path = File.join(@options["dir"], "public")
+      content = generate_template("nginx", {
+        port: @config[:environment]["PORT"],
+        server_name: @config[:nginx]["server_name"],
+        root: root_path,
+        error_500: File.exist?(File.join root_path, "500.html"),
+        error_404: File.exist?(File.join root_path, "404.html"),
+        error_422: File.exist?(File.join root_path, "422.html")
+      })
+
+      if save
+        config_path = File.join(NGINX_DIR, "sites-available", app_name)
+        puts "Creating Nginx config (#{config_path})..."
+        write_file!(config_path, content)
+        puts "Link Nginx config file to the sites-enabled folder..."
+        system "sudo", "ln", "-nfs", config_path, File.join(NGINX_DIR, "sites-enabled")
+      else
+        content
+      end
+    end
+
     private
 
-    def generate_from(template_name, conf)
+    def generate_template(template_name, conf)
       b = binding
       b.local_variable_set(:config, conf)
       template_path = File.join(File.dirname(__FILE__), "templates/#{template_name}.erb")
       content = File.read(template_path)
-
       ERB.new(content, nil, "-").result(b)
     end
 
-    def write_unit!(filename, content)
-      source_path = File.join("/tmp", filename)
-      dest_path = File.join(@config[:systemd_dir], filename)
-
-      File.write(source_path, content)
-      if system "sudo", "mv", source_path, dest_path
+    def write_file!(dest_path, content)
+      temp_path = File.join("/tmp", Pathname.new(dest_path).basename.to_s)
+      File.write(temp_path, content)
+      if system "sudo", "mv", temp_path, dest_path
         puts "Create: #{dest_path}"
       end
     ensure
-      File.delete(source_path) if File.exist? source_path
+      File.delete(temp_path) if File.exist? temp_path
     end
   end
 end

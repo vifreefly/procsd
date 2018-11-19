@@ -13,50 +13,33 @@ module Procsd
     option :'or-restart', type: :boolean, banner: "Create and start app services if not created yet, otherwise restart"
     option :'add-to-sudoers', type: :boolean, banner: "Create sudoers rule at /etc/sudoers.d/app_name to allow manage app target without password prompt"
     def create
-      unless system("which", "systemctl", [:out, :err] => "/dev/null")
-        raise ConfigurationError, "Your OS doesn't has systemctl executable available"
+      raise ConfigurationError, "Can't find systemctl executable available" unless in_path?("systemctl")
+      options.each do |key, value|
+        next unless %w(user dir path).include? key
+        if value.nil? || value.empty?
+          say("Can't fetch value for --#{key}, please provide it's as an argument", :red) and return
+        else
+          say("Value of the --#{key} option: #{value}", :yellow)
+        end
       end
+
       preload!
+      if @config[:nginx]
+        raise ConfigurationError, "Can't find nginx executable available" unless in_path?("nginx")
+        unless Dir.exist?(File.join options["dir"], "public")
+          raise ConfigurationError, "Missing public/ folder to use with Nginx"
+        end
+        unless @config.dig(:environment, "PORT")
+          raise ConfigurationError, "Please provide PORT environment variable in procsd.yml to use with Nginx"
+        end
+        if certbot = @config[:nginx]["certbot"]
+          raise ConfigurationError, "Can't find certbot executable available" unless in_path?("certbot")
+          raise ConfigurationError, "Provide email to generate cert using certbot" unless certbot["email"]
+        end
+      end
 
       if !target_exist?
-        options.each do |key, value|
-          next unless %w(user dir path).include? key
-          if value.nil? || value.empty?
-            say("Can't fetch value for --#{key}, please provide it as an argument", :red) and return
-          else
-            say("Value of the --#{key} option: #{value}", :yellow)
-          end
-        end
-
-        generator = Generator.new(@config, options)
-        generator.generate_export(save: true)
-
-        if execute %w(sudo systemctl daemon-reload)
-          say("Reloaded configuraion (daemon-reload)", :green)
-        end
-
-        enable
-
-        if options["or-restart"]
-          start
-          say("App services were created, enabled and started", :green)
-        else
-          say("App services were created and enabled. Run `start` to start them", :green)
-        end
-
-        if options["add-to-sudoers"]
-          if Dir.exist?(SUDOERS_DIR)
-            if generator.generate_sudoers(options["user"], has_reload: has_reload?, save: true)
-              say("Sudoers file #{SUDOERS_DIR}/#{app_name} was created", :green)
-            end
-          else
-            say("Directory #{SUDOERS_DIR} does not exists, sudoers file wasn't created", :red)
-          end
-        else
-          say "Note: add following line to the sudoers file (`$ sudo visudo`) if you don't " \
-            "want to type password each time for start/stop/restart commands:"
-          puts generator.generate_sudoers(options["user"], has_reload: has_reload?)
-        end
+        perform_create
       else
         if options["or-restart"]
           restart
@@ -87,6 +70,17 @@ module Procsd
         sudoers_file_path = "#{SUDOERS_DIR}/#{app_name}"
         if system "sudo", "test", "-e", sudoers_file_path
           say("Sudoers file removed", :green) if execute %W(sudo rm #{sudoers_file_path})
+        end
+
+        if @config[:nginx]
+          enabled_path = File.join(NGINX_DIR, "sites-enabled", app_name)
+          available_path = File.join(NGINX_DIR, "sites-available", app_name)
+          [enabled_path, available_path].each do |path|
+            execute %W(sudo rm #{path}) and say "Deleted: #{path}" if File.exist?(path)
+          end
+
+          execute %w(sudo systemctl restart nginx)
+          say("Nginx config removed and daemon reloaded", :green)
         end
       else
         say_target_not_exists
@@ -240,6 +234,63 @@ module Procsd
 
     private
 
+    def perform_create
+      generator = Generator.new(@config, options)
+      generator.generate_units(save: true)
+
+      if execute %w(sudo systemctl daemon-reload)
+        say("Reloaded configuraion (daemon-reload)", :green)
+      end
+
+      enable
+
+      if options["or-restart"]
+        start
+        say("App services were created, enabled and started", :green)
+      else
+        say("App services were created and enabled. Run `start` to start them", :green)
+      end
+
+      if options["add-to-sudoers"]
+        if Dir.exist?(SUDOERS_DIR)
+          if generator.generate_sudoers(options["user"], has_reload: has_reload?, save: true)
+            say("Sudoers file #{SUDOERS_DIR}/#{app_name} was created", :green)
+          end
+        else
+          say("Directory #{SUDOERS_DIR} does not exists, sudoers file wasn't created", :red)
+        end
+      else
+        say "Note: add following line to the sudoers file (`$ sudo visudo`) if you don't " \
+          "want to type password each time for start/stop/restart commands:"
+        puts generator.generate_sudoers(options["user"], has_reload: has_reload?)
+      end
+
+      if nginx = @config[:nginx]
+        generator.generate_nginx_conf(save: true)
+        execute %w(sudo systemctl restart nginx)
+        say("Nginx config created and daemon reloaded", :green)
+
+        # Reference: https://certbot.eff.org/docs/using.html#certbot-command-line-options
+        if certbot = nginx["certbot"]
+          command = %w(sudo certbot --agree-tos --no-eff-email --non-interactive --nginx)
+          nginx["server_name"].split(" ").map(&:strip).each do |domain|
+            command.push("-d", domain)
+          end
+
+          command.push("-m", certbot["email"])
+          if execute command
+            say("Successfully installed SSL cert using certbot", :green)
+          else
+            say("Failed to install SSL cert using certbot", :red)
+          end
+        end
+      end
+    end
+
+    def in_path?(name)
+      system("which", name, [:out, :err] => "/dev/null")
+    end
+
     def has_reload?
       @config[:processes].any? { |name, values| values.dig("commands", "ExecReload") }
     end
@@ -336,6 +387,7 @@ module Procsd
 
       @config[:environment] = procsd["environment"] || {}
       @config[:systemd_dir] = procsd["systemd_dir"] || DEFAULT_SYSTEMD_DIR
+      @config[:nginx] = procsd["nginx"]
     end
   end
 end
