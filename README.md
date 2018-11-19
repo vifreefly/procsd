@@ -207,10 +207,10 @@ Use Ctrl-C to stop
 
 By default `procsd exec` skip environment variables defined in `procsd.yml`. To run process with production environment, provide `--env` option as well: `procsd exec web --env`.
 
-### Nginx
+### Nginx integration
 > Before make sure that you have Nginx installed `sudo apt install nginx` and running `sudo systemctl status nginx`.
 
-If one of your application processes is a web process, you can automatically setup Nginx config for it. Why? For example to serve static files (assets, images, etc) directly using fast Nginx, rather than application server. Or to enable SSL support (see below).
+If one of your application processes is a web process, you can automatically setup Nginx (reverse proxy) config for it. Why? For example to serve static files (assets, images, etc) directly using fast Nginx, rather than application server. Or to enable SSL support (see below).
 
 Add to your procsd.yml `nginx` section with `server_name` option defined:
 
@@ -222,6 +222,9 @@ Add to your procsd.yml `nginx` section with `server_name` option defined:
 
 ```yml
 app: sample_app
+processes:
+  web: bundle exec rails server -p $PORT
+  worker: bundle exec sidekiq -e $RAILS_ENV
 formation: web=1,worker=2
 environment:
   PORT: 2501
@@ -231,7 +234,7 @@ nginx:
   server_name: my-domain.com
 ```
 
-Configuration is done! Run [procsd create](#create-an-application-export-to-systemd) to create app services with Nginx config:
+Configuration is done! Run [procsd create](#create-an-application-export-to-systemd) to create app services with Nginx reverse proxy config:
 
 ```
 deploy@server:~/sample_app$ procsd create
@@ -251,8 +254,8 @@ Link Nginx config file to the sites-enabled folder...
 Nginx config created and daemon reloaded
 ```
 
-<details/>
-  <summary><code>/etc/nginx/sites-available/sample_app</code>:</summary>
+<details>
+  <summary>/etc/nginx/sites-available/sample_app</summary>
 
 ```
 upstream app {
@@ -291,6 +294,9 @@ server {
 ```
 </details>
 
+
+Everything is done. Start app services (`procsd start`) and go to `http://my-domain.com` where you'll see your application proxying with Nginx.
+
 #### Auto SSL using Certbot
 
 To generate Nginx config with free SSL certificate (from [Let’s Encrypt](https://letsencrypt.org/)) included, you need to install [Certbot](https://certbot.eff.org/) on the remote server first:
@@ -306,13 +312,14 @@ Then update procsd.yml:
 > It's required to provide contact email to obtain free certificate from Let’s Encrypt
 
 ```yml
+# ...
 nginx:
   server_name: my-domain.com
   certbot:
     email: my-contact-email@gmail.com
 ```
 
-Configuration is done. **Make sure that all domains defined in procsd (nginx.server_name) are pointed to server IP** where the application is hosted. Now run `procsd create` as usual:
+Configuration is done. **Make sure that all domains defined in procsd (nginx.server_name) are pointed to server IP** where the application is hosted. Then run `procsd create` as usual:
 
 <details/>
   <summary>Output</summary>
@@ -374,6 +381,8 @@ IMPORTANT NOTES:
 Successfully installed SSL cert using certbot
 ```
 </details>
+
+That's it. Start app services (`procsd start`) and go to `https://my-domain.com` where you'll see your application proxying with Nginx and SSL enabled.
 
 
 ## All available commands
