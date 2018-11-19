@@ -8,7 +8,7 @@ Can we have something similar on the cheap Ubuntu VPS from DigitalOcean? Yes we 
 
 ## Getting started
 
-> **Note:** latest version of Procsd is `0.3.0`. Since version `0.2.0` there are some breaking changes. Check the [CHANGELOG.md](CHANGELOG.md). To update to the latest version, run `$ gem update procsd` or `$ bundle update procsd` (if you have already installed procsd).
+> **Note:** latest version of Procsd is `0.4.0`. Since version `0.3.0` there are some breaking changes. Check the [CHANGELOG.md](CHANGELOG.md). To update to the latest version, run `$ gem update procsd` or `$ bundle update procsd` (if you have already installed procsd).
 
 > **Note:** Procsd works best with Capistrano integration: [vifreefly/capistrano-procsd](https://github.com/vifreefly/capistrano-procsd)
 
@@ -44,15 +44,15 @@ deploy@server:~/sample_app$ procsd create
 Value of the --user option: deploy
 Value of the --dir option: /home/deploy/sample_app
 Value of the --path option: /home/deploy/.rbenv/shims:/home/deploy/.rbenv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
-Systemd directory: /etc/systemd/system
 
-      create  sample_app-web.1.service
-      create  sample_app-worker.1.service
-      create  sample_app-worker.2.service
-      create  sample_app.target
+Creating app units files in the systemd directory (/etc/systemd/system)...
+Create: /etc/systemd/system/sample_app-web.1.service
+Create: /etc/systemd/system/sample_app-worker.1.service
+Create: /etc/systemd/system/sample_app-worker.2.service
+Create: /etc/systemd/system/sample_app.target
+Reloaded configuraion (daemon-reload)
 Created symlink /etc/systemd/system/multi-user.target.wants/sample_app.target → /etc/systemd/system/sample_app.target.
 Enabled app target sample_app.target
-Reloaded configuraion (daemon-reload)
 App services were created and enabled. Run `start` to start them
 
 Note: add following line to the sudoers file (`$ sudo visudo`) if you don't want to type password each time for start/stop/restart commands:
@@ -187,6 +187,195 @@ Systemd provides [a lot of possibilities](https://www.digitalocean.com/community
 * `--priority` - Filter messages by a [particular log level.](https://www.digitalocean.com/community/tutorials/how-to-use-journalctl-to-view-and-manipulate-systemd-logs#by-priority) For example show only error messages: `procsd logs --priority err`
 * `--grep` - [Filter output](https://www.freedesktop.org/software/systemd/man/journalctl.html#-g) to messages where message matches the provided query (may not work for [some](https://bugs.launchpad.net/ubuntu/+source/systemd/+bug/1751006) Linux distributions)
 
+### Execute processes defined in Procfile
+
+Currently, procsd can not run all processes in development like `foreman start` does. But you can run one single process using `procsd exec` command:
+
+```
+deploy@server:~/sample_app$ PORT=3000 procsd exec web
+
+=> Booting Puma
+=> Rails 5.2.1 application starting in development
+=> Run `rails server -h` for more startup options
+Puma starting in single mode...
+* Version 3.12.0 (ruby 2.3.0-p0), codename: Llamas in Pajamas
+* Min threads: 5, max threads: 5
+* Environment: development
+* Listening on tcp://localhost:3000
+Use Ctrl-C to stop
+```
+
+By default `procsd exec` skip environment variables defined in `procsd.yml`. To run process with production environment, provide `--env` option as well: `procsd exec web --env`.
+
+### Nginx
+> Before make sure that you have Nginx installed `sudo apt install nginx` and running `sudo systemctl status nginx`.
+
+If one of your application processes is a web process, you can automatically setup Nginx config for it. Why? For example to serve static files (assets, images, etc) directly using fast Nginx, rather than application server. Or to enable SSL support (see below).
+
+Add to your procsd.yml `nginx` section with `server_name` option defined:
+
+> If you don't have domain defined (or don't need it), you can add server IP instead: `server_name: 159.159.159.159`.
+
+> If your application use multiple domains/subdomains, add all of them separated with space: `server_name: my-domain.com us.my-domain.com uk.my-domain.com`
+
+> It's required to provide `PORT` number environment variable in `procsd.yml`. Provided port number will be used to proxy requests from Nginx to application server.
+
+```yml
+app: sample_app
+formation: web=1,worker=2
+environment:
+  PORT: 2501
+  RAILS_ENV: production
+  RAILS_LOG_TO_STDOUT: true
+nginx:
+  server_name: my-domain.com
+```
+
+Configuration is done! Run [procsd create](#create-an-application-export-to-systemd) to create app services with Nginx config:
+
+```
+deploy@server:~/sample_app$ procsd create
+
+Creating app units files in the systemd directory (/etc/systemd/system)...
+Create: /etc/systemd/system/sample_app-web.1.service
+Create: /etc/systemd/system/sample_app-worker.1.service
+Create: /etc/systemd/system/sample_app-worker.2.service
+Create: /etc/systemd/system/sample_app.target
+Reloaded configuraion (daemon-reload)
+Created symlink /etc/systemd/system/multi-user.target.wants/sample_app.target → /etc/systemd/system/sample_app.target.
+Enabled app target sample_app.target
+App services were created and enabled. Run `start` to start them
+Creating Nginx config (/etc/nginx/sites-available/sample_app)...
+Create: /etc/nginx/sites-available/sample_app
+Link Nginx config file to the sites-enabled folder...
+Nginx config created and daemon reloaded
+```
+
+<details/>
+  <summary><code>/etc/nginx/sites-available/sample_app</code>:</summary>
+
+```
+upstream app {
+  server 127.0.0.1:2501;
+}
+
+server {
+  listen 80;
+  listen [::]:80;
+
+  server_name my-domain.com;
+  root /home/deploy/sample_app/public;
+
+  location ^~ /assets/ {
+    gzip_static on;
+    expires max;
+    add_header Cache-Control public;
+  }
+
+  try_files $uri/index.html $uri @app;
+  location @app {
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_redirect off;
+    proxy_pass http://app;
+  }
+
+  client_max_body_size 256M;
+  keepalive_timeout 60;
+  error_page 500 502 503 504 /500.html;
+  error_page 404 /404.html;
+  error_page 422 /422.html;
+}
+```
+</details>
+
+#### Auto SSL using Certbot
+
+To generate Nginx config with free SSL certificate (from [Let’s Encrypt](https://letsencrypt.org/)) included, you need to install [Certbot](https://certbot.eff.org/) on the remote server first:
+
+```
+sudo add-apt-repository ppa:certbot/certbot
+sudo apt update
+sudo apt-get install python-certbot-nginx
+```
+
+Then update procsd.yml:
+
+> It's required to provide contact email to obtain free certificate from Let’s Encrypt
+
+```yml
+nginx:
+  server_name: my-domain.com
+  certbot:
+    email: my-contact-email@gmail.com
+```
+
+Configuration is done. **Make sure that all domains defined in procsd (nginx.server_name) are pointed to server IP** where the application is hosted. Now run `procsd create` as usual:
+
+<details/>
+  <summary>Output</summary>
+
+```
+deploy@server:~/sample_app$ procsd create
+
+Creating app units files in the systemd directory (/etc/systemd/system)...
+Create: /etc/systemd/system/sample_app-web.1.service
+Create: /etc/systemd/system/sample_app-worker.1.service
+Create: /etc/systemd/system/sample_app-worker.2.service
+Create: /etc/systemd/system/sample_app.target
+Reloaded configuraion (daemon-reload)
+Created symlink /etc/systemd/system/multi-user.target.wants/sample_app.target → /etc/systemd/system/sample_app.target.
+Enabled app target sample_app.target
+App services were created and enabled. Run `start` to start them
+Creating Nginx config (/etc/nginx/sites-available/sample_app)...
+Create: /etc/nginx/sites-available/sample_app
+Link Nginx config file to the sites-enabled folder...
+Nginx config created and daemon reloaded
+
+Execute: sudo certbot --agree-tos --no-eff-email --non-interactive --nginx -d my-domain.com -m my-contact-email@gmail.com
+Saving debug log to /var/log/letsencrypt/letsencrypt.log
+Plugins selected: Authenticator nginx, Installer nginx
+Obtaining a new certificate
+Performing the following challenges:
+http-01 challenge for my-domain.com
+Waiting for verification...
+Cleaning up challenges
+Deploying Certificate to VirtualHost /etc/nginx/sites-enabled/sample_app
+Redirecting all traffic on port 80 to ssl in /etc/nginx/sites-enabled/sample_app
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+Congratulations! You have successfully enabled https://my-domain.com
+
+You should test your configuration at:
+https://www.ssllabs.com/ssltest/analyze.html?d=my-domain.com
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+IMPORTANT NOTES:
+ - Congratulations! Your certificate and chain have been saved at:
+   /etc/letsencrypt/live/my-domain.com/fullchain.pem
+   Your key file has been saved at:
+   /etc/letsencrypt/live/my-domain.com/privkey.pem
+   Your cert will expire on 2019-02-17. To obtain a new or tweaked
+   version of this certificate in the future, simply run certbot again
+   with the "certonly" option. To non-interactively renew *all* of
+   your certificates, run "certbot renew"
+ - Your account credentials have been saved in your Certbot
+   configuration directory at /etc/letsencrypt. You should make a
+   secure backup of this folder now. This configuration directory will
+   also contain certificates and private keys obtained by Certbot so
+   making regular backups of this folder is ideal.
+ - If you like Certbot, please consider supporting our work by:
+
+   Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
+   Donating to EFF:                    https://eff.org/donate-le
+
+Successfully installed SSL cert using certbot
+```
+</details>
+
+
 ## All available commands
 
 ```
@@ -194,11 +383,12 @@ $ procsd --help
 
 Commands:
   procsd --version, -v   # Print the version
-  procsd config          # Show configuration. Available types: sudoers
+  procsd config          # Print config files based on current settings. Available types: sudoers
   procsd create          # Create and enable app services
   procsd destroy         # Stop, disable and remove app services
   procsd disable         # Disable app target
   procsd enable          # Enable app target
+  procsd exec            # Run app process
   procsd help [COMMAND]  # Describe available commands or one specific command
   procsd list            # List all app services
   procsd logs            # Show app services logs
@@ -260,7 +450,6 @@ https://github.com/vifreefly/capistrano-procsd
 
 
 ## ToDo
-* Optional possibility to generate Nginx config (with out-of-box SSL using [Certbot](https://certbot.eff.org/lets-encrypt/ubuntubionic-nginx)) for an application to use Nginx as a proxy and serve static files
 * Add integration with [Inspeqtor](https://github.com/mperham/inspeqtor) to monitor application services and get alert notifications if something happened
 
 

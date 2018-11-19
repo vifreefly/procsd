@@ -19,6 +19,7 @@ processes:
 ```
 
 * Added new command `exec` to run one of the defined processes (for development purposes). Example: `$ procsd exec web`.
+* Added Nginx support with auto-ssl (using Certbot)
 
 ## 0.3.0
 * **Breaking change:** `.procsd.yml` renamed to `procsd.yml` (without dot)
