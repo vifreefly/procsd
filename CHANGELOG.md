@@ -18,7 +18,7 @@ processes:
     ExecReload: bundle exec pumactl phased-restart
 ```
 
-* Added new command `exec` to run one of the defined processes for development purposes. Example: `$ procsd exec web`.
+* Added new command `exec` to run one of the defined processes (for development purposes). Example: `$ procsd exec web`.
 
 ## 0.3.0
 * **Breaking change:** `.procsd.yml` renamed to `procsd.yml` (without dot)

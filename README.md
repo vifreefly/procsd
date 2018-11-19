@@ -260,7 +260,7 @@ https://github.com/vifreefly/capistrano-procsd
 
 
 ## ToDo
-* Optional possibility to generate Ngnix config (with out-of-box SSL using [Certbot](https://certbot.eff.org/lets-encrypt/ubuntubionic-nginx)) for an application to use Ngnix as a proxy and serve static files
+* Optional possibility to generate Nginx config (with out-of-box SSL using [Certbot](https://certbot.eff.org/lets-encrypt/ubuntubionic-nginx)) for an application to use Nginx as a proxy and serve static files
 * Add integration with [Inspeqtor](https://github.com/mperham/inspeqtor) to monitor application services and get alert notifications if something happened
 
 
