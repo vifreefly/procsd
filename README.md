@@ -8,7 +8,7 @@ Can we have something similar on the cheap Ubuntu VPS from DigitalOcean? Yes we 
 
 ## Getting started
 
-> **Note:** latest version of Procsd is `0.4.0`. Since version `0.3.0` there are some breaking changes. Check the [CHANGELOG.md](CHANGELOG.md). To update to the latest version, run `$ gem update procsd` or `$ bundle update procsd` (if you have already installed procsd).
+> **Note:** latest version of Procsd is `0.5.0`. Since version `0.4.0` there are some breaking changes. Check the [CHANGELOG.md](CHANGELOG.md). To update to the latest version, run `$ gem update procsd` or `$ bundle update procsd` (if you have already installed procsd).
 
 > **Note:** Procsd works best with Capistrano integration: [vifreefly/capistrano-procsd](https://github.com/vifreefly/capistrano-procsd)
 
@@ -207,14 +207,14 @@ Use Ctrl-C to stop
 
 By default `procsd exec` skip environment variables defined in `procsd.yml`. To run process with production environment, provide `--env` option as well: `procsd exec web --env`.
 
-### Nginx integration
+### Nginx integration (with automatic HTTPS)
 > Before make sure that you have Nginx installed `sudo apt install nginx` and running `sudo systemctl status nginx`.
 
 If one of your application processes is a web process, you can automatically setup Nginx (reverse proxy) config for it. Why? For example to serve static files (assets, images, etc) directly using fast Nginx, rather than application server. Or to enable SSL support (see below).
 
 Add to your procsd.yml `nginx` section with `server_name` option defined:
 
-> If you don't have domain defined (or don't need it), you can add server IP instead: `server_name: 159.159.159.159`.
+> If you don't have a domain for an application (or don't need it), you can add server IP instead: `server_name: 159.159.159.159`.
 
 > If your application use multiple domains/subdomains, add all of them separated with space: `server_name: my-domain.com us.my-domain.com uk.my-domain.com`
 
@@ -292,8 +292,7 @@ server {
   error_page 422 /422.html;
 }
 ```
-</details>
-
+</details><br>
 
 Everything is done. Start app services (`procsd start`) and go to `http://my-domain.com` where you'll see your application proxying with Nginx.
 
@@ -308,21 +307,20 @@ sudo apt update
 sudo apt-get install python-certbot-nginx
 ```
 
-> When you install certbot, it automatically setup a cron job (twice per day) to renew expiring certificates ([Automated Renewals](https://certbot.eff.org/docs/using.html#automated-renewals)), so you don't have to worry and renew certificates manually.
+> When you install certbot, it automatically setup a cron job (twice per day) to renew expiring certificates ([Automated Renewals](https://certbot.eff.org/docs/using.html#automated-renewals)), so you don't have to worry about renewing certificates manually.
 
-Then update procsd.yml:
-
-> It's required to provide contact email to obtain free certificate from Let’s Encrypt
+Then update procsd.yml by adding `ssl: true`:
 
 ```yml
 # ...
 nginx:
   server_name: my-domain.com
-  certbot:
-    email: my-contact-email@gmail.com
+  ssl: true # added
 ```
 
-Configuration is done. **Make sure that all domains defined in procsd (nginx.server_name) are pointed to server IP** where the application is hosted. Then run `procsd create` as usual:
+Configuration is done. **Make sure that all domains defined in procsd (nginx.server_name) are pointing to the server IP** where application is hosted. Then run `procsd create` as usual:
+
+> By default Certbot obtaining certificate from _Let's Encrypt_ without a contact email. If you want to provide contact email, define env variable `CERTBOT_EMAIL` with your email in the `.env` file.
 
 <details/>
   <summary>Output</summary>
@@ -344,7 +342,7 @@ Create: /etc/nginx/sites-available/sample_app
 Link Nginx config file to the sites-enabled folder...
 Nginx config created and daemon reloaded
 
-Execute: sudo certbot --agree-tos --no-eff-email --non-interactive --nginx -d my-domain.com -m my-contact-email@gmail.com
+Execute: sudo certbot --agree-tos --no-eff-email --non-interactive --nginx -d my-domain.com --register-unsafely-without-email
 Saving debug log to /var/log/letsencrypt/letsencrypt.log
 Plugins selected: Authenticator nginx, Installer nginx
 Obtaining a new certificate
@@ -383,7 +381,7 @@ IMPORTANT NOTES:
 
 Successfully installed SSL cert using certbot
 ```
-</details>
+</details><br>
 
 That's it. Start app services (`procsd start`) and go to `https://my-domain.com` where you'll see your application proxying with Nginx and SSL enabled.
 
@@ -462,6 +460,7 @@ https://github.com/vifreefly/capistrano-procsd
 
 
 ## ToDo
+* Add `procsd update` command to quickly update changed configuration (application units, nginx config, etc), instead of calling two separate commands (`procsd destroy` and `procsd create`)
 * Add integration with [Inspeqtor](https://github.com/mperham/inspeqtor) to monitor application services and get alert notifications if something happened
 
 

@@ -1,4 +1,26 @@
 # CHANGELOG
+## 0.5.0
+* **Breaking change:** Changed the way how to define SSL option for Ngnix configuration in procsd.yml (and by default contact email is not required anymore)
+
+Was:
+```yml
+nginx:
+  server_name: my-domain.com
+  certbot:
+    email: some@email.com
+```
+
+Now:
+```yml
+nginx:
+  server_name: my-domain.com
+  ssl: true
+```
+
+If you want to provide email for Let's Encrypt, make sure that you have env variable CERTBOT_EMAIL=my_email while executing `$ procsd create`. You can put CERTBOT_EMAIL variable to the application's `.env` file (procsd will read this file if it exists) or simply call create command this way: `CERTBOT_EMAIL=my_email procsd create`.
+
+* Change SyslogIdentifier for services from %n to %p
+
 ## 0.4.0
 * **Breaking change:** commands in extended processes syntax were renamed from start/restart/stop to ExecStart/ExecReload/ExecStop:
 
