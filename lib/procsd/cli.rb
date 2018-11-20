@@ -271,13 +271,19 @@ module Procsd
         say("Nginx config created and daemon reloaded", :green)
 
         # Reference: https://certbot.eff.org/docs/using.html#certbot-command-line-options
-        if certbot = nginx["certbot"]
+        # How it works in Caddy https://caddyserver.com/docs/automatic-https
+        if nginx["ssl"]
           command = %w(sudo certbot --agree-tos --no-eff-email --redirect --non-interactive --nginx)
           nginx["server_name"].split(" ").map(&:strip).each do |domain|
             command.push("-d", domain)
           end
 
-          command.push("-m", certbot["email"])
+          if email = ENV["CERTBOT_EMAIL"]
+            command.push("--email", email)
+          else
+            command << "--register-unsafely-without-email"
+          end
+
           if execute command
             say("Successfully installed SSL cert using certbot", :green)
           else

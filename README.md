@@ -302,10 +302,13 @@ Everything is done. Start app services (`procsd start`) and go to `http://my-dom
 To generate Nginx config with free SSL certificate (from [Let’s Encrypt](https://letsencrypt.org/)) included, you need to install [Certbot](https://certbot.eff.org/) on the remote server first:
 
 ```
+sudo apt install software-properties-common
 sudo add-apt-repository ppa:certbot/certbot
 sudo apt update
 sudo apt-get install python-certbot-nginx
 ```
+
+> When you install certbot, it automatically setup a cron job (twice per day) to renew expiring certificates ([Automated Renewals](https://certbot.eff.org/docs/using.html#automated-renewals)), so you don't have to worry and renew certificates manually.
 
 Then update procsd.yml:
 
