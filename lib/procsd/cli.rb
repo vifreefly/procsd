@@ -14,14 +14,6 @@ module Procsd
     option :'add-to-sudoers', type: :boolean, banner: "Create sudoers rule at /etc/sudoers.d/app_name to allow manage app target without password prompt"
     def create
       raise ConfigurationError, "Can't find systemctl executable available" unless in_path?("systemctl")
-      options.each do |key, value|
-        next unless %w(user dir path).include? key
-        if value.nil? || value.empty?
-          say("Can't fetch value for --#{key}, please provide it's as an argument", :red) and return
-        else
-          say("Value of the --#{key} option: #{value}", :yellow)
-        end
-      end
 
       preload!
       if @config[:nginx]
@@ -32,9 +24,8 @@ module Procsd
         unless @config.dig(:environment, "PORT")
           raise ConfigurationError, "Please provide PORT environment variable in procsd.yml to use with Nginx"
         end
-        if certbot = @config[:nginx]["certbot"]
+        if @config[:nginx]["ssl"]
           raise ConfigurationError, "Can't find certbot executable available" unless in_path?("certbot")
-          raise ConfigurationError, "Provide email to generate cert using certbot" unless certbot["email"]
         end
       end
 
@@ -235,6 +226,15 @@ module Procsd
     private
 
     def perform_create
+      options.each do |key, value|
+        next unless %w(user dir path).include? key
+        if value.nil? || value.empty?
+          say("Can't fetch value for --#{key}, please provide it's as an argument", :red) and return
+        else
+          say("Value of the --#{key} option: #{value}", :yellow)
+        end
+      end
+
       generator = Generator.new(@config, options)
       generator.generate_units(save: true)
 
@@ -284,10 +284,12 @@ module Procsd
             command << "--register-unsafely-without-email"
           end
 
+          say "Trying to obtain SSL certificate for Nginx config using Certbot..."
           if execute command
-            say("Successfully installed SSL cert using certbot", :green)
+            say("Successfully installed SSL cert using Certbot", :green)
           else
-            say("Failed to install SSL cert using certbot", :red)
+            msg = "Failed to install SSL cert using Certbot. Make sure that all provided domains are pointing to this server IP."
+            say(msg, :red)
           end
         end
       end
