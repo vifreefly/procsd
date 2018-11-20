@@ -23,7 +23,7 @@ RestartSec=1
 TimeoutStopSec=30
 KillMode=mixed
 StandardInput=null
-SyslogIdentifier=%n
+SyslogIdentifier=%p
 
 Environment="PATH=<%= config["path"] %>"
 <% config["environment"].each do |key, value| -%>
