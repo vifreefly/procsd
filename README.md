@@ -218,8 +218,6 @@ Add to your procsd.yml `nginx` section with `server_name` option defined:
 
 > If your application use multiple domains/subdomains, add all of them separated with space: `server_name: my-domain.com us.my-domain.com uk.my-domain.com`
 
-> It's required to provide `PORT` number environment variable in `procsd.yml`. Provided port number will be used to proxy requests from Nginx to application server.
-
 ```yml
 app: sample_app
 processes:
@@ -227,7 +225,8 @@ processes:
   worker: bundle exec sidekiq -e $RAILS_ENV
 formation: web=1,worker=2
 environment:
-  PORT: 2501
+  PORT: 2501 # PORT will be used by Nginx to proxy requests from 0.0.0.0:80/443 to 127.0.0.1:PORT (required)
+  HOST: localhost # Make sure that your application server in production running on 127.0.0.1, not 0.0.0.0
   RAILS_ENV: production
   RAILS_LOG_TO_STDOUT: true
 nginx:
