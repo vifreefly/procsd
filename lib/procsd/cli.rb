@@ -70,7 +70,7 @@ module Procsd
             execute %W(sudo rm #{path}) and say "Deleted: #{path}" if File.exist?(path)
           end
 
-          execute %w(sudo systemctl restart nginx)
+          execute %w(sudo systemctl reload-or-restart nginx)
           say("Nginx config removed and daemon reloaded", :green)
         end
       else
@@ -267,8 +267,7 @@ module Procsd
 
       if nginx = @config[:nginx]
         generator.generate_nginx_conf(save: true)
-        execute %w(sudo systemctl restart nginx)
-        say("Nginx config created and daemon reloaded", :green)
+        say("Nginx config created", :green)
 
         # Reference: https://certbot.eff.org/docs/using.html#certbot-command-line-options
         # How it works in Caddy https://caddyserver.com/docs/automatic-https
@@ -291,6 +290,10 @@ module Procsd
             msg = "Failed to install SSL cert using Certbot. Make sure that all provided domains are pointing to this server IP."
             say(msg, :red)
           end
+        end
+
+        if execute %w(sudo systemctl reload-or-restart nginx)
+          say("Nginx daemon reloaded", :green)
         end
       end
     end
