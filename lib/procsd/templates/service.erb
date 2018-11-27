@@ -8,6 +8,9 @@ ReloadPropagatedFrom=<%= config["target_name"] %>
 [Service]
 Type=simple
 User=<%= config["user"] %>
+<% unless config["group"].empty? -%>
+Group=<%= config["group"] %>
+<% end -%>
 WorkingDirectory=<%= config["dir"] %>
 
 ExecStart=/bin/bash -lc '<%= config["commands"]["ExecStart"] %>'
