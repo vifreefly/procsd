@@ -1,3 +1,5 @@
+require "pathname"
+
 module Procsd
   class Generator
     attr_reader :app_name, :target_name
