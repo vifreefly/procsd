@@ -14,7 +14,6 @@ module Procsd
     option :'or-restart', type: :boolean, banner: "Create and start app services if not created yet, otherwise restart"
     option :'add-to-sudoers', type: :boolean, banner: "Create sudoers rule at /etc/sudoers.d/app_name to allow manage app target without password prompt"
     option :'add-to-sudoers', type: :boolean, banner: "Create sudoers rule at /etc/sudoers.d/app_name to allow manage app target without password prompt"
-
     def create
       raise ConfigurationError, "Can't find systemctl executable available" unless in_path?("systemctl")
 
@@ -147,7 +146,7 @@ module Procsd
 
     desc "status", "Show app services status"
     option :target, type: :boolean, banner: "Show main target status"
-    option :short,  type: :boolean, banner: "Show services three and their status shortly"
+    option :short,  type: :boolean, banner: "Show service tree and associated status in abbreviated fashion"
     def status(service_name = nil)
       preload!
       say_target_not_exists and return unless target_exist?
@@ -168,7 +167,6 @@ module Procsd
     option :system, type: :boolean, banner: "Show only system messages"
     option :priority, aliases: :p, type: :string, banner: "Show messages with a particular log level"
     option :grep, aliases: :g, type: :string, banner: "Filter output to entries where message matches the provided query"
-
     def logs(service_name = nil)
       preload!
 
