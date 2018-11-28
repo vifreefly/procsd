@@ -21,7 +21,7 @@ module Procsd
       if @config[:nginx]
         raise ConfigurationError, "Can't find nginx executable available" unless in_path?("nginx")
         unless Dir.exist?(File.join options["dir"], "public")
-          raise ConfigurationError, "Missing public folder to use with Nginx"
+          raise ConfigurationError, "Missing 'public' folder to use with Nginx"
         end
         unless @config.dig(:environment, "PORT")
           raise ConfigurationError, "Please provide PORT environment variable in procsd.yml to use with Nginx"
