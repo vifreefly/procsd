@@ -13,7 +13,7 @@ module Procsd
     option :path, aliases: :p, type: :string, banner: "$PATH", default: `/bin/bash -ilc 'echo $PATH'`.strip
     option :'or-restart', type: :boolean, banner: "Create and start app services if not created yet, otherwise restart"
     option :'add-to-sudoers', type: :boolean, banner: "Create sudoers rule at /etc/sudoers.d/app_name to allow manage app target without password prompt"
-    option :'add-to-sudoers', type: :boolean, banner: "Create sudoers rule at /etc/sudoers.d/app_name to allow manage app target without password prompt"
+    option :'overwrite', type: :boolean, banner: "Overwrite the service file without warning"
     def create
       raise ConfigurationError, "Can't find systemctl executable available" unless in_path?("systemctl")
 
@@ -30,16 +30,15 @@ module Procsd
           raise ConfigurationError, "Can't find certbot executable available" unless in_path?("certbot")
         end
       end
-
-      if !target_exist? or options["overwrite"]
-        perform_create
-      else
-        if options["or-restart"]
-          restart
-        else
-          say("App target `#{target_name}` already exists", :red)
-        end
-      end
+      
+      # Restart the service if the target exists and "--or-restart" flag was passed
+      restart if target_exist? and options["or-restart"]
+      
+      # Create if the target doesn't exist or should be overwritten
+      perform_create if !target_exist? or options["overwrite"]
+      
+      # Warn the user if the target already exists and should not be overwritten
+      say("App target `#{target_name}` already exists!", :red) if target_exist? and !options["overwrite"]
     end
 
     desc "destroy", "Stop, disable and remove app services"
