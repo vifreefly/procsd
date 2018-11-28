@@ -168,7 +168,7 @@ module Procsd
     option :system, type: :boolean, banner: "Show only system messages"
     option :priority, aliases: :p, type: :string, banner: "Show messages with a particular log level"
     option :grep, aliases: :g, type: :string, banner: "Filter output to entries where message matches the provided query"
-    
+
     def logs(service_name = nil)
       preload!
 
