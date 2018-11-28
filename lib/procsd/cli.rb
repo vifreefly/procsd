@@ -258,7 +258,7 @@ module Procsd
         else
           say("Directory #{SUDOERS_DIR} does not exists, sudoers file wasn't created", :red)
         end
-      else if ENV["VERBOSE"] == "true"
+      elsif ENV["VERBOSE"] == "true"
         say "Note: add following line to the sudoers file (`$ sudo visudo`) if you don't " \
           "want to type password each time for start/stop/restart commands:"
         say generator.generate_sudoers(options["user"], has_reload: has_reload?)
