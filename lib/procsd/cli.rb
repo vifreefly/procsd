@@ -229,7 +229,9 @@ module Procsd
     def perform_create
       options.each do |key, value|
         next unless %w(user dir path group).include? key
-        unless value.nil? || value.empty?
+        if value.nil? || value.empty?
+          say("Can't fetch value for --#{key}, please provide it's as an argument", :red) and return
+        else
           say("Value of the --#{key} option: #{value}", :yellow)
         end
       end
