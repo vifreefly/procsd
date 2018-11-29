@@ -8,7 +8,7 @@ ReloadPropagatedFrom=<%= config["target_name"] %>
 [Service]
 Type=simple
 User=<%= config["user"] %>
-<% unless config["group"].empty? -%>
+<% unless config["group"].nil? -%>
 Group=<%= config["group"] %>
 <% end -%>
 WorkingDirectory=<%= config["dir"] %>
