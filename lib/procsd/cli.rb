@@ -8,7 +8,7 @@ module Procsd
 
     desc "create", "Create and enable app services"
     option :user, aliases: :u, type: :string, banner: "$USER", default: ENV["USER"]
-    option :group, aliases: :g, type: :string, banner: "$GROUP", default: ""
+    option :group, aliases: :g, type: :string, banner: "$GROUP", default: nil
     option :dir,  aliases: :d, type: :string, banner: "$PWD", default: ENV["PWD"]
     option :path, aliases: :p, type: :string, banner: "$PATH", default: `/bin/bash -ilc 'echo $PATH'`.strip
     option :'or-restart', type: :boolean, banner: "Create and start app services if not created yet, otherwise restart"
