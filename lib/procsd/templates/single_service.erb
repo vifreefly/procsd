@@ -1,0 +1,18 @@
+[Unit]
+Requires=network.target
+
+[Service]
+User=<%= config[:user] %>
+Type=simple
+WorkingDirectory=<%= config[:dir] %>
+ExecStart=/bin/bash -lc 'exec <%= config[:command] %>'
+
+Restart=always
+RestartSec=1
+TimeoutStopSec=30
+KillMode=mixed
+SyslogIdentifier=%p
+Environment="PATH=<%= config[:path] %>"
+
+[Install]
+WantedBy=multi-user.target

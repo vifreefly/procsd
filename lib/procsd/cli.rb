@@ -217,6 +217,37 @@ module Procsd
       end
     end
 
+    # Example: procsd export 'bundle exec rails s -p 3001' --name rails_example
+    desc "export", "Export any provided command to a systemd service"
+    option :name, aliases: :n, type: :string, banner: "Provide service name", required: true
+    def export(command)
+      raise ConfigurationError, "Can't find systemctl executable available" unless in_path?("systemctl")
+
+      conf = {
+        user: ENV["USER"],
+        dir: ENV["PWD"],
+        path: `/bin/bash -ilc 'echo $PATH'`.strip,
+        command: command
+      }
+      gen = Generator.new
+      content = gen.generate_template("single_service", conf)
+
+      filename = "#{options['name']}.service"
+      systemd_dir = DEFAULT_SYSTEMD_DIR
+      file_path = File.join(systemd_dir, filename)
+
+      say "Creating: #{file_path}"
+      gen.write_file!(file_path, content)
+
+      execute %w(sudo systemctl daemon-reload)
+      say <<~HEREDOC
+        All done, systemd service created! To start, run: `sudo systemctl start #{filename}`.
+        If you want service to be started automatically at the system reboot, enable it: `sudo systemctl enable #{filename}`.
+        To check service logs, run: `journalctl -u #{filename}`.
+        To delete service: stop it `sudo systemctl stop #{filename}`, disable `sudo systemctl disable #{filename}` and remove service file: `sudo rm #{file_path}`.
+      HEREDOC
+    end
+
     map %w[--version -v] => :__print_version
     desc "--version, -v", "Print the version"
     def __print_version

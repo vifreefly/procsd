@@ -1,10 +1,10 @@
-require "pathname"
+require 'pathname'
 
 module Procsd
   class Generator
     attr_reader :app_name, :target_name
 
-    def initialize(config, options)
+    def initialize(config = {}, options = {})
       @config = config
       @options = options
       @app_name = @config[:app]
@@ -89,8 +89,6 @@ module Procsd
       end
     end
 
-    private
-
     def generate_template(template_name, conf)
       b = binding
       b.local_variable_set(:config, conf)
@@ -106,7 +104,7 @@ module Procsd
         puts "Create: #{dest_path}"
       end
     ensure
-      File.delete(temp_path) if File.exist? temp_path
+      File.delete(temp_path) if File.exist?(temp_path)
     end
   end
 end
