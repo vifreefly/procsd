@@ -72,6 +72,7 @@ module Procsd
     def generate_nginx_conf(save: false)
       root_path = File.join(@config[:options]["dir"], "public")
       content = generate_template("nginx", {
+        upstream: @config[:app],
         proxy_to: @config[:nginx]["proxy_to"],
         server_name: @config[:nginx]["server_name"],
         root: root_path,
