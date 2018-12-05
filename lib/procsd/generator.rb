@@ -52,7 +52,7 @@ module Procsd
       systemctl_path = `which systemctl`.strip
       commands = []
       %w(start stop restart).each { |cmd| commands << "#{systemctl_path} #{cmd} #{target_name}" }
-      commands << "#{systemctl_path} reload-or-restart #{app_name}-\\* --all" if has_reload
+      commands << "#{systemctl_path} reload-or-restart #{app_name}-\\* --all"
       content = "#{user} ALL=NOPASSWD: #{commands.join(', ')}"
 
       if save
