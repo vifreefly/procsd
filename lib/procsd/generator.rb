@@ -4,9 +4,8 @@ module Procsd
   class Generator
     attr_reader :app_name, :target_name
 
-    def initialize(config = {}, options = {})
+    def initialize(config = {})
       @config = config
-      @options = options
       @app_name = @config[:app]
       @target_name = "#{app_name}.target"
     end
@@ -15,14 +14,16 @@ module Procsd
       services = {}
       @config[:processes].each do |name, values|
         commands = values["commands"]
-        size = values["size"]
-        content = generate_template("service", @options.merge(
+        content = generate_template("service", {
+          "user" => @config[:options]["user"],
+          "dir" => @config[:options]["dir"],
+          "path" => @config[:options]["path"],
           "target_name" => target_name,
           "commands" => commands,
           "environment" => @config[:environment]
-        ))
+        })
 
-        services[name] = { content: content, size: size }
+        services[name] = { content: content, size: values["size"] }
       end
 
       if save
@@ -68,7 +69,7 @@ module Procsd
     end
 
     def generate_nginx_conf(save: false)
-      root_path = File.join(@options["dir"], "public")
+      root_path = File.join(@config[:options]["dir"], "public")
       content = generate_template("nginx", {
         port: @config[:environment]["PORT"],
         server_name: @config[:nginx]["server_name"],

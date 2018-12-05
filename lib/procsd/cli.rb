@@ -7,28 +7,12 @@ module Procsd
     class ArgumentError < StandardError; end
 
     desc "create", "Create and enable app services"
-    option :user, aliases: :u, type: :string, banner: "$USER", default: ENV["USER"]
-    option :dir,  aliases: :d, type: :string, banner: "$PWD", default: ENV["PWD"]
-    option :path, aliases: :p, type: :string, banner: "$PATH", default: `/bin/bash -ilc 'echo $PATH'`.strip
     option :'or-restart', type: :boolean, banner: "Create and start app services if not created yet, otherwise restart"
     option :'add-to-sudoers', type: :boolean, banner: "Create sudoers rule at /etc/sudoers.d/app_name to allow manage app target without password prompt"
     def create
       raise ConfigurationError, "Can't find systemctl executable available" unless in_path?("systemctl")
 
       preload!
-      if @config[:nginx]
-        raise ConfigurationError, "Can't find nginx executable available" unless in_path?("nginx")
-        unless Dir.exist?(File.join options["dir"], "public")
-          raise ConfigurationError, "Missing public/ folder to use with Nginx"
-        end
-        unless @config.dig(:environment, "PORT")
-          raise ConfigurationError, "Please provide PORT environment variable in procsd.yml to use with Nginx"
-        end
-        if @config[:nginx]["ssl"]
-          raise ConfigurationError, "Can't find certbot executable available" unless in_path?("certbot")
-        end
-      end
-
       if !target_exist?
         perform_create
       else
@@ -200,6 +184,8 @@ module Procsd
       end
     end
 
+    ###
+
     map exec: :__exec
     desc "exec", "Run app process"
     option :env, type: :boolean, banner: "Require environment defined in procsd.yml"
@@ -216,6 +202,8 @@ module Procsd
         exec start_cmd
       end
     end
+
+    ###
 
     # Example: procsd export 'bundle exec rails s -p 3001' --name rails_example
     desc "export", "Export any provided command to a systemd service"
@@ -257,16 +245,36 @@ module Procsd
     private
 
     def perform_create
-      options.each do |key, value|
-        next unless %w(user dir path).include? key
-        if value.nil? || value.empty?
-          say("Can't fetch value for --#{key}, please provide it's as an argument", :red) and return
+      { "user" => "USER", "dir" => "PWD", "path" => "PATH" }.each do |option_name, env_name|
+        @config[:options][option_name] ||=
+          if option_name == "path"
+            # Fetch PATH including reading .bashrc
+            `/bin/bash -ilc 'echo $PATH'`.strip
+          else
+            ENV[env_name]
+          end
+
+        if @config[:options][option_name].nil? || @config[:options][option_name].empty?
+          raise ConfigurationError, "Option `#{option_name}` is not present, please set it in procsd.yml config file"
         else
-          say("Value of the --#{key} option: #{value}", :yellow)
+          say("Value of the #{option_name} option: `#{@config[:options][option_name]}`", :yellow)
         end
       end
 
-      generator = Generator.new(@config, options)
+      if @config[:nginx]
+        raise ConfigurationError, "Can't find nginx executable available" unless in_path?("nginx")
+        unless Dir.exist?(File.join @config[:options]["dir"], "public")
+          raise ConfigurationError, "Missing public/ folder to use with Nginx"
+        end
+        unless @config.dig(:environment, "PORT")
+          raise ConfigurationError, "Please provide PORT environment variable in procsd.yml to use with Nginx"
+        end
+        if @config[:nginx]["ssl"]
+          raise ConfigurationError, "Can't find certbot executable available" unless in_path?("certbot")
+        end
+      end
+
+      generator = Generator.new(@config)
       generator.generate_units(save: true)
 
       if execute %w(sudo systemctl daemon-reload)
@@ -284,7 +292,7 @@ module Procsd
 
       if options["add-to-sudoers"]
         if Dir.exist?(SUDOERS_DIR)
-          if generator.generate_sudoers(options["user"], has_reload: has_reload?, save: true)
+          if generator.generate_sudoers(@config[:options]["user"], has_reload: has_reload?, save: true)
             say("Sudoers file #{SUDOERS_DIR}/#{app_name} was created", :green)
           end
         else
@@ -293,7 +301,7 @@ module Procsd
       else
         say "Note: add following line to the sudoers file (`$ sudo visudo`) if you don't " \
           "want to type password each time for start/stop/restart commands:"
-        puts generator.generate_sudoers(options["user"], has_reload: has_reload?)
+        puts generator.generate_sudoers(@config[:options]["user"], has_reload: has_reload?)
       end
 
       if nginx = @config[:nginx]
@@ -385,6 +393,7 @@ module Procsd
     end
 
     def preload!
+      return if @config
       @config = { processes: {}}
 
       raise ConfigurationError, "Config file procsd.yml doesn't exists" unless File.exist? "procsd.yml"
@@ -430,6 +439,7 @@ module Procsd
       @config[:environment] = procsd["environment"] || {}
       @config[:systemd_dir] = procsd["systemd_dir"] || DEFAULT_SYSTEMD_DIR
       @config[:nginx] = procsd["nginx"]
+      @config[:options] = procsd["options"] || {}
     end
   end
 end
