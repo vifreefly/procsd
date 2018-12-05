@@ -11,7 +11,9 @@ module Procsd
     def create
       raise ConfigurationError, "Can't find systemctl executable available" unless in_path?("systemctl")
 
-      preload!
+      preload_config!
+      preload_required_options!
+
       if !target_exist?
         perform_create and start
         say("App services were created, enabled and started", :green)
@@ -22,7 +24,7 @@ module Procsd
 
     desc "destroy", "Stop, disable and remove app services"
     def destroy
-      preload!
+      preload_config!
 
       if target_exist?
         stop and disable
@@ -59,7 +61,7 @@ module Procsd
 
     desc "enable", "Enable app target"
     def enable
-      preload!
+      preload_config!
       say_target_not_exists and return unless target_exist?
 
       say "Note: app target #{target_name} already enabled" if target_enabled?
@@ -70,7 +72,7 @@ module Procsd
 
     desc "disable", "Disable app target"
     def disable
-      preload!
+      preload_config!
       say_target_not_exists and return unless target_exist?
 
       say "Note: app target #{target_name} already disabled" if !target_enabled?
@@ -81,7 +83,7 @@ module Procsd
 
     desc "start", "Start app services"
     def start
-      preload!
+      preload_config!
       say_target_not_exists and return unless target_exist?
 
       say "Note: app target #{target_name} already started/active" if target_active?
@@ -92,7 +94,7 @@ module Procsd
 
     desc "stop", "Stop app services"
     def stop
-      preload!
+      preload_config!
       say_target_not_exists and return unless target_exist?
 
       say "Note: app target #{target_name} already stopped/inactive" if !target_active?
@@ -103,7 +105,7 @@ module Procsd
 
     desc "restart", "Restart app services"
     def restart
-      preload!
+      preload_config!
       say_target_not_exists and return unless target_exist?
 
       # If one of the child services of a target has `ExecReload` and `ReloadPropagatedFrom`
@@ -125,7 +127,7 @@ module Procsd
     option :target, type: :boolean, banner: "Show main target status"
     option :short,  type: :boolean, banner: "Show services three and their status shortly"
     def status(service_name = nil)
-      preload!
+      preload_config!
       say_target_not_exists and return unless target_exist?
 
       if options["short"]
@@ -145,7 +147,7 @@ module Procsd
     option :priority, aliases: :p, type: :string, banner: "Show messages with a particular log level"
     option :grep, aliases: :g, type: :string, banner: "Filter output to entries where message matches the provided query"
     def logs(service_name = nil)
-      preload!
+      preload_config!
 
       command = %w(journalctl --no-pager --no-hostname --all --output short-iso)
       command.push("-n", options.fetch("num", "100"))
@@ -160,7 +162,7 @@ module Procsd
 
     desc "list", "List all app services"
     def list
-      preload!
+      preload_config!
       say_target_not_exists and return unless target_exist?
 
       command = %W(systemctl list-dependencies #{target_name})
@@ -169,7 +171,7 @@ module Procsd
 
     desc "config", "Print config files based on current settings. Available types: sudoers"
     def config(name)
-      preload!
+      preload_config!
 
       case name
       when "sudoers"
@@ -185,7 +187,7 @@ module Procsd
     desc "exec", "Run app process"
     option :env, type: :boolean, banner: "Require environment defined in procsd.yml"
     def __exec(process_name)
-      preload!
+      preload_config!
 
       start_cmd = @config[:processes].dig(process_name, "commands", "ExecStart")
       raise ArgumentError, "Process is not defined: #{process_name}" unless start_cmd
@@ -240,22 +242,6 @@ module Procsd
     private
 
     def perform_create
-      { "user" => "USER", "dir" => "PWD", "path" => "PATH" }.each do |option_name, env_name|
-        @config[:options][option_name] ||=
-          if option_name == "path"
-            # Fetch PATH including reading .bashrc
-            `/bin/bash -ilc 'echo $PATH'`.strip
-          else
-            ENV[env_name]
-          end
-
-        if @config[:options][option_name].nil? || @config[:options][option_name].empty?
-          raise ConfigurationError, "Option `#{option_name}` is not present, please set it in procsd.yml config file"
-        else
-          say("Value of the #{option_name} option: `#{@config[:options][option_name]}`", :yellow)
-        end
-      end
-
       if @config[:nginx]
         raise ConfigurationError, "Can't find nginx executable available" unless in_path?("nginx")
         unless Dir.exist?(File.join @config[:options]["dir"], "public")
@@ -380,7 +366,26 @@ module Procsd
       @config[:app]
     end
 
-    def preload!
+    def preload_required_options!
+      required_options = { "user" => "USER", "dir" => "PWD", "path" => "PATH" }
+      required_options.each do |option_name, env_name|
+        @config[:options][option_name] ||=
+          if option_name == "path"
+            # Fetch PATH including reading .bashrc
+            `/bin/bash -ilc 'echo $PATH'`.strip
+          else
+            ENV[env_name]
+          end
+
+        if @config[:options][option_name].nil? || @config[:options][option_name].empty?
+          raise ConfigurationError, "Option `#{option_name}` is not present, please set it in procsd.yml config file"
+        else
+          say("Value of the #{option_name} option: `#{@config[:options][option_name]}`", :yellow)
+        end
+      end
+    end
+
+    def preload_config!
       return if @config
       @config = { processes: {}}
 
@@ -427,6 +432,7 @@ module Procsd
       @config[:environment] = procsd["environment"] || {}
       @config[:systemd_dir] = procsd["systemd_dir"] || DEFAULT_SYSTEMD_DIR
       @config[:nginx] = procsd["nginx"]
+
       @config[:options] = procsd["options"] || {}
     end
   end
