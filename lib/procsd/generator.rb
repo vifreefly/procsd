@@ -18,6 +18,7 @@ module Procsd
           "user" => @config[:options]["user"],
           "dir" => @config[:options]["dir"],
           "path" => @config[:options]["path"],
+          "group" => @config[:options]["group"],
           "target_name" => target_name,
           "commands" => commands,
           "environment" => @config[:environment]
