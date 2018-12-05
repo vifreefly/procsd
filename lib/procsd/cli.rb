@@ -7,20 +7,16 @@ module Procsd
     class ArgumentError < StandardError; end
 
     desc "create", "Create and enable app services"
-    option :'or-restart', type: :boolean, banner: "Create and start app services if not created yet, otherwise restart"
     option :'add-to-sudoers', type: :boolean, banner: "Create sudoers rule at /etc/sudoers.d/app_name to allow manage app target without password prompt"
     def create
       raise ConfigurationError, "Can't find systemctl executable available" unless in_path?("systemctl")
 
       preload!
       if !target_exist?
-        perform_create
+        perform_create and start
+        say("App services were created, enabled and started", :green)
       else
-        if options["or-restart"]
-          restart
-        else
-          say("App target `#{target_name}` already exists", :red)
-        end
+        say("App target `#{target_name}` already exists", :red)
       end
     end
 
@@ -29,8 +25,7 @@ module Procsd
       preload!
 
       if target_exist?
-        stop
-        disable
+        stop and disable
 
         units.each do |filename|
           path = File.join(systemd_dir, filename)
@@ -282,13 +277,6 @@ module Procsd
       end
 
       enable
-
-      if options["or-restart"]
-        start
-        say("App services were created, enabled and started", :green)
-      else
-        say("App services were created and enabled. Run `start` to start them", :green)
-      end
 
       if options["add-to-sudoers"]
         if Dir.exist?(SUDOERS_DIR)
