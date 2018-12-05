@@ -242,16 +242,14 @@ module Procsd
     private
 
     def perform_create
-      if @config[:nginx]
+      if nginx = @config[:nginx]
         raise ConfigurationError, "Can't find nginx executable available" unless in_path?("nginx")
+        raise ConfigurationError, "Option nginx.server_name must contain at least one domain" unless nginx["server_name"]
+        raise ConfigurationError, "Option nginx.proxy_to is not set" unless nginx["proxy_to"]
+        raise ConfigurationError, "Can't find certbot executable available" if nginx["ssl"] && !in_path?("certbot")
+
         unless Dir.exist?(File.join @config[:options]["dir"], "public")
           raise ConfigurationError, "Missing public/ folder to use with Nginx"
-        end
-        unless @config.dig(:environment, "PORT")
-          raise ConfigurationError, "Please provide PORT environment variable in procsd.yml to use with Nginx"
-        end
-        if @config[:nginx]["ssl"]
-          raise ConfigurationError, "Can't find certbot executable available" unless in_path?("certbot")
         end
       end
 

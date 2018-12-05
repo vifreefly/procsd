@@ -1,5 +1,5 @@
 upstream app {
-  server 127.0.0.1:<%= config[:port] %>;
+  server <%= config[:proxy_to] %>;
 }
 
 server {
