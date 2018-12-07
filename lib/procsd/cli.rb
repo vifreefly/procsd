@@ -1,6 +1,3 @@
-require 'yaml'
-require_relative 'generator'
-
 module Procsd
   class CLI < Thor
     class ConfigurationError < StandardError; end
@@ -12,10 +9,10 @@ module Procsd
       raise ConfigurationError, "Can't find systemctl executable available" unless in_path?("systemctl")
 
       preload_config!
-      preload_required_options!
-
       if !target_exist?
-        perform_create and start
+        preload_required_options!
+        perform_create
+        start
         say("App services were created, enabled and started", :green)
       else
         say("App target `#{target_name}` already exists", :red)
@@ -242,70 +239,39 @@ module Procsd
     private
 
     def perform_create
-      if nginx = @config[:nginx]
-        raise ConfigurationError, "Can't find nginx executable available" unless in_path?("nginx")
-        raise ConfigurationError, "Option nginx.server_name must contain at least one domain" unless nginx["server_name"]
-        raise ConfigurationError, "Option nginx.proxy_to is not set" unless nginx["proxy_to"]
-        raise ConfigurationError, "Can't find certbot executable available" if nginx["ssl"] && !in_path?("certbot")
+      check_nginx_environment if @config[:nginx]
 
-        unless Dir.exist?(File.join @config[:options]["dir"], "public")
-          raise ConfigurationError, "Missing public/ folder to use with Nginx"
-        end
-      end
-
-      generator = Generator.new(@config)
-      generator.generate_units(save: true)
-
-      if execute %w(sudo systemctl daemon-reload)
-        say("Reloaded configuraion (daemon-reload)", :green)
-      end
-
+      UnitsGenerator.new(@config).generate_units!
+      execute %w(sudo systemctl daemon-reload)
+      say("Reloaded configuraion (daemon-reload)", :green)
       enable
 
       if options["add-to-sudoers"]
         if Dir.exist?(SUDOERS_DIR)
-          if generator.generate_sudoers(@config[:options]["user"], has_reload: has_reload?, save: true)
-            say("Sudoers file #{SUDOERS_DIR}/#{app_name} was created", :green)
-          end
+          SudoersGenerator.new(@config).generate_sudoers!(@config[:options]["user"])
+          say("Sudoers file #{SUDOERS_DIR}/#{app_name} was created", :green)
         else
           say("Directory #{SUDOERS_DIR} does not exists, sudoers file wasn't created", :red)
         end
-      else
-        say "Note: add following line to the sudoers file (`$ sudo visudo`) if you don't " \
-          "want to type password each time for start/stop/restart commands:"
-        puts generator.generate_sudoers(@config[:options]["user"], has_reload: has_reload?)
       end
 
-      if nginx = @config[:nginx]
-        generator.generate_nginx_conf(save: true)
-        say("Nginx config created", :green)
+      if @config[:nginx]
+        NginxGenerator.new(@config).generate_nginx!
+        execute %w(sudo systemctl reload-or-restart nginx)
+        say("Nginx config created and daemon reloaded", :green)
+      end
+    end
 
-        # Reference: https://certbot.eff.org/docs/using.html#certbot-command-line-options
-        # How it works in Caddy https://caddyserver.com/docs/automatic-https
-        if nginx["ssl"]
-          command = %w(sudo certbot --agree-tos --no-eff-email --redirect --non-interactive --nginx)
-          nginx["server_name"].split(" ").map(&:strip).each do |domain|
-            command.push("-d", domain)
-          end
+    def check_nginx_environment
+      nginx = @config[:nginx]
 
-          if email = ENV["CERTBOT_EMAIL"]
-            command.push("--email", email)
-          else
-            command << "--register-unsafely-without-email"
-          end
+      raise ConfigurationError, "Can't find nginx executable available" unless in_path?("nginx")
+      raise ConfigurationError, "Option nginx.server_name must contain at least one domain" unless nginx["server_name"]
+      raise ConfigurationError, "Option nginx.proxy_to is not set" unless nginx["proxy_to"]
+      raise ConfigurationError, "Can't find certbot executable available" if nginx["ssl"] && !in_path?("certbot")
 
-          say "Trying to obtain SSL certificate for Nginx config using Certbot..."
-          if execute command
-            say("Successfully installed SSL cert using Certbot", :green)
-          else
-            msg = "Failed to install SSL cert using Certbot. Make sure that all provided domains are pointing to this server IP."
-            say(msg, :red)
-          end
-        end
-
-        if execute %w(sudo systemctl reload-or-restart nginx)
-          say("Nginx daemon reloaded", :green)
-        end
+      unless Dir.exist?(File.join @config[:options]["dir"], "public")
+        raise ConfigurationError, "Missing public/ folder to use with Nginx"
       end
     end
 
