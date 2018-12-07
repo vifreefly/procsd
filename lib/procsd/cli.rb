@@ -19,35 +19,21 @@ module Procsd
       end
     end
 
+    # FIXME: destroy using .procsd.lock not current config
     desc "destroy", "Stop, disable and remove app services"
     def destroy
       preload_config!
 
       if target_exist?
         stop and disable
-
-        units.each do |filename|
-          path = File.join(systemd_dir, filename)
-          execute %W(sudo rm #{path}) and say "Deleted: #{path}" if File.exist?(path)
-        end
-
-        if execute %w(sudo systemctl daemon-reload)
-          say("Reloaded configuraion (daemon-reload)", :green)
-        end
+        UnitsGenerator.new(@config).destroy_units!
+        execute %w(sudo systemctl daemon-reload)
         say("App services were stopped, disabled and removed", :green)
 
-        sudoers_file_path = "#{SUDOERS_DIR}/#{app_name}"
-        if system "sudo", "test", "-e", sudoers_file_path
-          say("Sudoers file removed", :green) if execute %W(sudo rm #{sudoers_file_path})
-        end
+        SudoersGenerator.new(@config).destroy_sudoers!
 
         if @config[:nginx]
-          enabled_path = File.join(NGINX_DIR, "sites-enabled", app_name)
-          available_path = File.join(NGINX_DIR, "sites-available", app_name)
-          [enabled_path, available_path].each do |path|
-            execute %W(sudo rm #{path}) and say "Deleted: #{path}" if File.exist?(path)
-          end
-
+          NginxGenerator.new(@config).destroy_nginx!
           execute %w(sudo systemctl reload-or-restart nginx)
           say("Nginx config removed and daemon reloaded", :green)
         end
@@ -269,15 +255,6 @@ module Procsd
 
     def has_reload?
       @config[:processes].any? { |name, values| values.dig("commands", "ExecReload") }
-    end
-
-    def units
-      all = [target_name]
-      @config[:processes].each do |name, values|
-        values["size"].times { |i| all << "#{app_name}-#{name}.#{i + 1}.service" }
-      end
-
-      all
     end
 
     def execute(command, type: :system)

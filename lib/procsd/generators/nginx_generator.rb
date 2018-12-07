@@ -14,12 +14,11 @@ module Procsd
         error_422: File.exist?(File.join root_path, "422.html")
       })
 
-      config_path = File.join(NGINX_DIR, "sites-available", app_name)
-      puts "Creating Nginx config (#{config_path})..."
-      write_file!(config_path, content)
+      puts "Creating Nginx config (#{available_config_path})..."
+      write_file!(available_config_path, content)
 
       puts "Link Nginx config file to the sites-enabled folder..."
-      system "sudo", "ln", "-nfs", config_path, File.join(NGINX_DIR, "sites-enabled")
+      system "sudo", "ln", "-nfs", available_config_path, enabled_config_path
 
       # Reference: https://certbot.eff.org/docs/using.html#certbot-command-line-options
       # How it works in Caddy https://caddyserver.com/docs/automatic-https
@@ -42,6 +41,24 @@ module Procsd
           puts "Failed to install SSL cert using Certbot. Make sure that all provided domains are pointing to this server IP."
         end
       end
+    end
+
+    def destroy_nginx!
+      [enabled_config_path, available_config_path].each do |path|
+        if File.exist?(path)
+          system("sudo", "rm", path) and puts "Deleted: #{path}"
+        end
+      end
+    end
+
+    private
+
+    def enabled_config_path
+      File.join(NGINX_DIR, "sites-enabled", app_name)
+    end
+
+    def available_config_path
+      File.join(NGINX_DIR, "sites-available", app_name)
     end
   end
 end

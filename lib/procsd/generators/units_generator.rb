@@ -23,7 +23,25 @@ module Procsd
       write_file!(File.join(@config[:systemd_dir], target_name), target_content)
     end
 
+    def destroy_units!
+      config_units.each do |filename|
+        path = File.join(@config[:systemd_dir], filename)
+        if File.exist?(path)
+          system("sudo", "rm", path) and puts "Deleted: #{path}"
+        end
+      end
+    end
+
     private
+
+    def config_units
+      all = [target_name]
+      @config[:processes].each do |name, values|
+        values["size"].times { |i| all << "#{app_name}-#{name}.#{i + 1}.service" }
+      end
+
+      all
+    end
 
     def generate_target_content(wants)
       generate_template("target", {
