@@ -166,18 +166,6 @@ module Procsd
       execute command, type: :exec
     end
 
-    desc "config", "Print config files based on current settings. Available types: sudoers"
-    def config(name)
-      preload_config!
-
-      case name
-      when "sudoers"
-        say generate_sudoers_rule(ENV["USER"])
-      else
-        raise ArgumentError, "Wring type of argument: #{name}"
-      end
-    end
-
     ###
 
     map exec: :__exec
