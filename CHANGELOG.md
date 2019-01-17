@@ -1,4 +1,7 @@
 # CHANGELOG
+## 0.5.1
+* Fix bug `uninitialized constant Procsd::Generator::Pathname`, thanks to @koppen
+
 ## 0.5.0
 * **Breaking change:** Changed the way how to define SSL option for Ngnix configuration in procsd.yml (and by default contact email is not required anymore)
 
