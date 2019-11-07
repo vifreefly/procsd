@@ -68,7 +68,9 @@ module Procsd
     end
 
     def generate_nginx_conf(save: false)
-      root_path = File.join(@options["dir"], "public")
+      public_folder_path = @config[:nginx]["public_folder_path"] || "public"
+      root_path = File.join(@options["dir"], public_folder_path)
+
       content = generate_template("nginx", {
         app_name: @config[:app],
         port: @config[:environment]["PORT"],

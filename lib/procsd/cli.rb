@@ -18,12 +18,16 @@ module Procsd
       preload!
       if @config[:nginx]
         raise ConfigurationError, "Can't find nginx executable available" unless in_path?("nginx")
-        unless Dir.exist?(File.join options["dir"], "public")
+
+        public_folder_path = @config[:nginx]["public_folder_path"] || "public"
+        unless Dir.exist?(File.join options["dir"], public_folder_path)
           raise ConfigurationError, "Missing public/ folder to use with Nginx"
         end
+
         unless @config.dig(:environment, "PORT")
           raise ConfigurationError, "Please provide PORT environment variable in procsd.yml to use with Nginx"
         end
+
         if @config[:nginx]["ssl"]
           raise ConfigurationError, "Can't find certbot executable available" unless in_path?("certbot")
         end
