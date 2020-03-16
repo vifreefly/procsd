@@ -206,19 +206,20 @@ module Procsd
 
     map exec: :__exec
     desc "exec", "Run app process"
-    option :env, type: :boolean, banner: "Require environment defined in procsd.yml"
+    option :dev, type: :boolean, banner: "Require dev_environment (in additional to base env) defined in procsd.yml"
     def __exec(process_name)
       preload!
 
       start_cmd = @config[:processes].dig(process_name, "commands", "ExecStart")
       raise ArgumentError, "Process is not defined: #{process_name}" unless start_cmd
 
-      if options["env"]
-        @config[:environment].each { |k, v| @config[:environment][k] = v.to_s }
-        exec @config[:environment], start_cmd
-      else
-        exec start_cmd
+      process_env = @config[:environment].each { |k, v| @config[:environment][k] = v.to_s }
+      if options["dev"]
+        dev_env = @config[:dev_environment].each { |k, v| @config[:dev_environment][k] = v.to_s }
+        process_env.merge!(dev_env)
       end
+
+      exec process_env, start_cmd
     end
 
     map %w[--version -v] => :__print_version
@@ -401,6 +402,8 @@ module Procsd
       end
 
       @config[:environment] = procsd["environment"] || {}
+      @config[:dev_environment] = procsd["dev_environment"] || {}
+
       @config[:systemd_dir] = procsd["systemd_dir"] || DEFAULT_SYSTEMD_DIR
       @config[:nginx] = procsd["nginx"]
     end
