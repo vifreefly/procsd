@@ -8,7 +8,7 @@ Can we have something similar on the cheap Ubuntu VPS from DigitalOcean? Yes we 
 
 ## Getting started
 
-> **Note:** latest version of Procsd is `0.5.0`. Since version `0.4.0` there are some breaking changes. Check the [CHANGELOG.md](CHANGELOG.md). To update to the latest version, run `$ gem update procsd` or `$ bundle update procsd` (if you have already installed procsd).
+> **Note:** latest version of Procsd is `0.5.2`. Since version `0.4.0` there are some breaking changes. Check the [CHANGELOG.md](CHANGELOG.md). To update to the latest version, run `$ gem update procsd` or `$ bundle update procsd` (if you have already installed procsd).
 
 > **Note:** Procsd works best with Capistrano integration: [vifreefly/capistrano-procsd](https://github.com/vifreefly/capistrano-procsd)
 
@@ -64,7 +64,7 @@ You can provide additional options for `create` command:
 * `--dir` - application's working directory, default is current _$PWD_ env variable
 * `--path` - $PATH to include to the each service. Default is current _$PATH_ env variable
 * `--add-to-sudoers` - if option present, procsd will create sudoers rule file `/etc/sudoers.d/app_name` which allow to start/stop/restart app services without a password prompt (passwordless sudo).
-* `--or-restart` - if option provided and services already created, procsd will skip creation and call instead `restart` command. Otherwise (if services are not present), they will be created and (in additional) started.
+* `--or-restart` - if option provided and services already created, procsd will skip creation and call instead `restart` command. Otherwise (if services are not present), they will be created and (in additional) started. It's useful option for deployment tools like Capistrano, Mina, etc.
 
 
 ### Start application
@@ -192,7 +192,7 @@ Systemd provides [a lot of possibilities](https://www.digitalocean.com/community
 Currently, procsd can not run all processes in development like `foreman start` does. But you can run one single process using `procsd exec` command:
 
 ```
-deploy@server:~/sample_app$ PORT=3000 procsd exec web
+deploy@server:~/sample_app$ procsd exec web
 
 => Booting Puma
 => Rails 5.2.1 application starting in development
@@ -205,12 +205,30 @@ Puma starting in single mode...
 Use Ctrl-C to stop
 ```
 
-By default `procsd exec` skip environment variables defined in `procsd.yml`. To run process with production environment, provide `--env` option as well: `procsd exec web --env`.
+`procsd exec` requres all the environment variables defined in `environment` section of `procsd.yml` config file. Sometimes in development mode you need different environment configuration. For that you can add additional environment section `dev_environment` and require it as well using `--dev` flag, example:
+
+```yaml
+app: sample_app
+environment:
+  PORT: 2501
+  RAILS_ENV: production
+  RAILS_LOG_TO_STDOUT: true
+dev_environment:
+  RAILS_ENV: development
+  SOME_OTHER_DEV_ENV_VARIABLE=value
+```
+
+```
+deploy@server:~/sample_app$ PORT=3000 procsd exec web --dev
+```
+
+> The web process runs with all environment & dev_environment variables required.
+
 
 ### Nginx integration (with automatic HTTPS)
 > Before make sure that you have Nginx installed `sudo apt install nginx` and running `sudo systemctl status nginx`.
 
-If one of your application processes is a web process, you can automatically setup Nginx (reverse proxy) config for it. Why? For example to serve static files (assets, images, etc) directly using fast Nginx, rather than application server. Or to enable SSL support (see below).
+If one of your application processes is a web process, you can automatically setup Nginx (reverse proxy) config for it. Why? For example to serve static files (assets, images, and all other files located in `public` folder or another customly defined folder) directly using fast Nginx, rather than application server. Or to enable SSL support (see below).
 
 Add to your procsd.yml `nginx` section with `server_name` option defined:
 
@@ -218,7 +236,7 @@ Add to your procsd.yml `nginx` section with `server_name` option defined:
 
 > If your application use multiple domains/subdomains, add all of them separated with space: `server_name: my-domain.com us.my-domain.com uk.my-domain.com`
 
-```yml
+```yaml
 app: sample_app
 processes:
   web: bundle exec rails server -p $PORT
@@ -231,6 +249,7 @@ environment:
   RAILS_LOG_TO_STDOUT: true
 nginx:
   server_name: my-domain.com
+  public_folder_path: public # path is relative to the main project directory, not required, default value is `public`.
 ```
 
 Configuration is done! Run [procsd create](#create-an-application-export-to-systemd) to create app services with Nginx reverse proxy config:
@@ -257,7 +276,7 @@ Nginx config created and daemon reloaded
   <summary>/etc/nginx/sites-available/sample_app</summary>
 
 ```
-upstream app {
+upstream sample_app {
   server 127.0.0.1:2501;
 }
 
@@ -274,14 +293,14 @@ server {
     add_header Cache-Control public;
   }
 
-  try_files $uri/index.html $uri @app;
-  location @app {
+  try_files $uri/index.html $uri @sample_app;
+  location @sample_app {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_redirect off;
-    proxy_pass http://app;
+    proxy_pass http://sample_app;
   }
 
   client_max_body_size 256M;
@@ -460,7 +479,6 @@ https://github.com/vifreefly/capistrano-procsd
 
 ## ToDo
 * Add `procsd update` command to quickly update changed configuration (application units, nginx config, etc), instead of calling two separate commands (`procsd destroy` and `procsd create`)
-* Add integration with [Inspeqtor](https://github.com/mperham/inspeqtor) to monitor application services and get alert notifications if something happened
 
 
 ## License
