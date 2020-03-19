@@ -249,7 +249,7 @@ environment:
   RAILS_LOG_TO_STDOUT: true
 nginx:
   server_name: my-domain.com
-  public_folder_path: public # path is relative to the main project directory, not required, default value is `public`.
+  public_folder_path: public # path is relative to the main project directory, default value is `public`.
 ```
 
 Configuration is done! Run [procsd create](#create-an-application-export-to-systemd) to create app services with Nginx reverse proxy config:

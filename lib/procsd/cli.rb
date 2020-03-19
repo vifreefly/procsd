@@ -21,7 +21,7 @@ module Procsd
 
         public_folder_path = @config[:nginx]["public_folder_path"] || "public"
         unless Dir.exist?(File.join options["dir"], public_folder_path)
-          raise ConfigurationError, "Missing public/ folder to use with Nginx"
+          raise ConfigurationError, "Missing public folder path to use with Nginx"
         end
 
         unless @config.dig(:environment, "PORT")
@@ -192,15 +192,28 @@ module Procsd
       execute command, type: :exec
     end
 
-    desc "config", "Print config files based on current settings. Available types: sudoers"
+    desc "config", "Print config files based on current settings. Available types: sudoers, services"
     def config(name)
       preload!
 
+      options = { "user" => ENV["USER"], "dir" => ENV["PWD"], "path" => `/bin/bash -ilc 'echo $PATH'`.strip }
+      generator = Generator.new(@config, options)
+
       case name
       when "sudoers"
-        say generate_sudoers_rule(ENV["USER"])
+        say generator.generate_sudoers(options["user"], has_reload: has_reload?)
+      when "services"
+        return unless valid_create_options?(options)
+
+        services = generator.generate_units
+        services.each do |service_name, service_data|
+          puts "Service: #{service_name} (size: #{service_data[:size]}):"
+          puts "---\n\n"
+          puts service_data[:content]
+          puts "---\n\n"
+        end
       else
-        raise ArgumentError, "Wring type of argument: #{name}"
+        raise ArgumentError, "Wrong type of argument: #{name}"
       end
     end
 
@@ -230,15 +243,22 @@ module Procsd
 
     private
 
-    def perform_create
-      options.each do |key, value|
+    def valid_create_options?(opts)
+      opts.each do |key, value|
         next unless %w(user dir path).include? key
         if value.nil? || value.empty?
-          say("Can't fetch value for --#{key}, please provide it's as an argument", :red) and return
+          say("Can't fetch value for --#{key}, please provide it's as an argument", :red)
+          return false
         else
           say("Value of the --#{key} option: #{value}", :yellow)
         end
       end
+
+      true
+    end
+
+    def perform_create
+      return unless valid_create_options?(options)
 
       generator = Generator.new(@config, options)
       generator.generate_units(save: true)
