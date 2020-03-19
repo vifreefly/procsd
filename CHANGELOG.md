@@ -1,4 +1,13 @@
 # CHANGELOG
+## 0.5.3
+* Fix: procsd config sudoers command
+* Add: procsd config services command
+
+## 0.5.2
+* Fix: use uniq app name in Nginx config files
+* Add: custom option public_folder_path (Nginx)
+* Add: --dev option for exec command (to require dev_environment in development mode)
+
 ## 0.5.1
 * Fix bug `uninitialized constant Procsd::Generator::Pathname`, thanks to @koppen
 
