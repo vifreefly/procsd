@@ -443,6 +443,7 @@ Commands:
 ## Notes
 
 * If you want to set environment variables per process, [use format](https://github.com/ddollar/foreman/wiki/Per-Process-Environment-Variables) like Foreman recommends.
+
 * To print commands before execution, provide env variable `VERBOSE=true` before procsd command. Example:
 
 ```
@@ -455,6 +456,7 @@ Execute: journalctl --no-pager --no-hostname --all --output short-iso -n 3 --uni
 2018-11-04T19:11:59+0400 sample_app-worker.2[29907]: 2018-11-04T15:11:59.597Z 29907 TID-gne5aeyuz INFO: Booting Sidekiq 5.2.2 with redis options {:id=>"Sidekiq-server-PID-29907", :url=>nil}
 2018-11-04T19:11:59+0400 sample_app-worker.2[29907]: 2018-11-04T15:11:59.601Z 29907 TID-gne5aeyuz INFO: Starting processing, hit Ctrl-C to stop
 ```
+
 * You can use extended format of processes commands inside `procsd.yml` to provide additional restart/stop commands for each process:
 
 > All possible options: `ExecStart`, `ExecReload` and `ExecStop`
@@ -471,6 +473,9 @@ processes:
 ```
 
 Why? For example default Ruby on Rails application server [Puma](http://puma.io/) supports [Phased or Rolling restart](https://github.com/puma/puma/blob/master/docs/restart.md#normal-vs-hot-vs-phased-restart) feature. If you provide separate `ExecReload`command for a process, then this command will be called while executing `$ procsd restart` by systemd instead of just killing and starting process again.
+
+* If you use Nginx integration but default Nginx requests timeout (60s) is too small for you, [you can set a custom timeout](https://serverfault.com/a/777753) in the global Nginx config.
+
 
 ## Capistrano integration
 
