@@ -195,17 +195,19 @@ Currently, procsd can not run all processes in development like `foreman start` 
 deploy@server:~/sample_app$ procsd exec web
 
 => Booting Puma
-=> Rails 5.2.1 application starting in development
+=> Rails 5.2.1 application starting in production
 => Run `rails server -h` for more startup options
 Puma starting in single mode...
 * Version 3.12.0 (ruby 2.3.0-p0), codename: Llamas in Pajamas
 * Min threads: 5, max threads: 5
-* Environment: development
-* Listening on tcp://localhost:3000
+* Environment: production
+* Listening on tcp://localhost:2501
 Use Ctrl-C to stop
 ```
 
-`procsd exec` requres all the environment variables defined in `environment` section of `procsd.yml` config file. Sometimes in development mode you need different environment configuration. For that you can add additional environment section `dev_environment` and require it as well using `--dev` flag, example:
+`procsd exec` requres all the environment variables defined in `environment` section of `procsd.yml` config file.
+
+Sometimes in development mode you need different environment configuration. For that you can add additional environment section `dev_environment` and require it as well using `--dev` flag, example:
 
 ```yaml
 app: sample_app
@@ -215,14 +217,16 @@ environment:
   RAILS_LOG_TO_STDOUT: true
 dev_environment:
   RAILS_ENV: development
-  SOME_OTHER_DEV_ENV_VARIABLE=value
+  SOME_OTHER_DEV_ENV_VARIABLE: value
 ```
 
 ```
-deploy@server:~/sample_app$ PORT=3000 procsd exec web --dev
+# Run web process with all environment & dev_environment variables included:
+
+deploy@server:~/sample_app$ procsd exec web --dev
 ```
 
-> The web process runs with all environment & dev_environment variables required.
+> In case if `dev_environment` has env variable with the same name like in `environment`, this variable will be rewritten with value from `dev_environment`.
 
 
 ### Nginx integration (with automatic HTTPS)
@@ -336,7 +340,7 @@ nginx:
   ssl: true # added
 ```
 
-Configuration is done. **Make sure that all domains defined in procsd (nginx.server_name) are pointing to the server IP** where application is hosted. Then run `procsd create` as usual:
+Configuration is done. **Make sure that all domains defined in procsd (nginx.server_name) are pointing to the server IP** where application is hosted. Then run `procsd create` _(you will probably need first run `procsd destroy` if app services already exists)_ as usual:
 
 > By default Certbot obtaining certificate from _Let's Encrypt_ without a contact email. If you want to provide contact email, define env variable `CERTBOT_EMAIL` with your email in the `.env` file.
 
@@ -411,12 +415,12 @@ $ procsd --help
 
 Commands:
   procsd --version, -v   # Print the version
-  procsd config          # Print config files based on current settings. Available types: sudoers
+  procsd config          # Print config files based on current settings. Available types: sudoers, services
   procsd create          # Create and enable app services
   procsd destroy         # Stop, disable and remove app services
   procsd disable         # Disable app target
   procsd enable          # Enable app target
-  procsd exec            # Run app process
+  procsd exec            # Run single app process with environment
   procsd help [COMMAND]  # Describe available commands or one specific command
   procsd list            # List all app services
   procsd logs            # Show app services logs
