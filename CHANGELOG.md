@@ -1,4 +1,8 @@
 # CHANGELOG
+## 0.5.4
+* Add: information how to use SSL integration with Cloudflare CDN enabled
+* Add: procsd config certbot_command command
+
 ## 0.5.3
 * Fix: procsd config sudoers command
 * Add: procsd config services command

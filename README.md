@@ -408,7 +408,7 @@ Successfully installed SSL cert using certbot
 That's it. Start app services (`procsd start`) and go to `https://my-domain.com` where you'll see your application proxying with Nginx and SSL enabled.
 
 
-<br><details/>
+<details/>
   <summary>Note about using Cloudflare CDN</summary><br>
 
 If you use Cloudflare CDN, that means the process of obtaining Let's Encrypt SSL Certificate will fail. To fix it, install `python-certbot-dns-cloudflare` package:
