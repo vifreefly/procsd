@@ -192,7 +192,7 @@ module Procsd
       execute command, type: :exec
     end
 
-    desc "config", "Print config files based on current settings. Available types: sudoers, services"
+    desc "config", "Print config files based on current settings. Available types: sudoers, services, certbot_command"
     def config(name)
       preload!
 
@@ -201,7 +201,7 @@ module Procsd
 
       case name
       when "sudoers"
-        say generator.generate_sudoers(options["user"], has_reload: has_reload?)
+        puts generator.generate_sudoers(options["user"], has_reload: has_reload?)
       when "services"
         return unless valid_create_options?(options)
 
@@ -212,13 +212,15 @@ module Procsd
           puts service_data[:content]
           puts "---\n\n"
         end
+      when "certbot_command"
+        puts get_certbot_command.join(' ')
       else
         raise ArgumentError, "Wrong type of argument: #{name}"
       end
     end
 
     map exec: :__exec
-    desc "exec", "Run app process"
+    desc "exec", "Run single app process with environment"
     option :dev, type: :boolean, banner: "Require dev_environment (in additional to base env) defined in procsd.yml"
     def __exec(process_name)
       preload!
@@ -297,19 +299,9 @@ module Procsd
         # Reference: https://certbot.eff.org/docs/using.html#certbot-command-line-options
         # How it works in Caddy https://caddyserver.com/docs/automatic-https
         if nginx["ssl"]
-          command = %w(sudo certbot --agree-tos --no-eff-email --redirect --non-interactive --nginx)
-          nginx["server_name"].split(" ").map(&:strip).each do |domain|
-            command.push("-d", domain)
-          end
-
-          if email = ENV["CERTBOT_EMAIL"]
-            command.push("--email", email)
-          else
-            command << "--register-unsafely-without-email"
-          end
-
+          certbot_command = get_certbot_command
           say "Trying to obtain SSL certificate for Nginx config using Certbot..."
-          if execute command
+          if execute certbot_command
             say("Successfully installed SSL cert using Certbot", :green)
           else
             msg = "Failed to install SSL cert using Certbot. Make sure that all provided domains are pointing to this server IP."
@@ -320,6 +312,20 @@ module Procsd
         if execute %w(sudo systemctl reload-or-restart nginx)
           say("Nginx daemon reloaded", :green)
         end
+      end
+    end
+
+    def get_certbot_command
+      command = %w(sudo certbot --agree-tos --no-eff-email --redirect --non-interactive --nginx)
+
+      @config[:nginx]["server_name"].split(" ").map(&:strip).each do |domain|
+        command.push("-d", domain)
+      end
+
+      if email = ENV["CERTBOT_EMAIL"]
+        command.push("--email", email)
+      else
+        command << "--register-unsafely-without-email"
       end
     end
 

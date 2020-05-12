@@ -322,11 +322,11 @@ Everything is done. Start app services (`procsd start`) and go to `http://my-dom
 
 To generate Nginx config with free SSL certificate (from [Let’s Encrypt](https://letsencrypt.org/)) included, you need to install [Certbot](https://certbot.eff.org/) on the remote server first:
 
-```
-sudo apt install software-properties-common
-sudo add-apt-repository ppa:certbot/certbot
-sudo apt update
-sudo apt-get install python-certbot-nginx
+```bash
+$ sudo apt install software-properties-common
+$ sudo add-apt-repository ppa:certbot/certbot
+$ sudo apt update
+$ sudo apt install certbot python-certbot-nginx
 ```
 
 > When you install certbot, it automatically setup a cron job (twice per day) to renew expiring certificates ([Automated Renewals](https://certbot.eff.org/docs/using.html#automated-renewals)), so you don't have to worry about renewing certificates manually.
@@ -408,26 +408,82 @@ Successfully installed SSL cert using certbot
 That's it. Start app services (`procsd start`) and go to `https://my-domain.com` where you'll see your application proxying with Nginx and SSL enabled.
 
 
+<br><details/>
+  <summary>Note about using Cloudflare CDN</summary><br>
+
+If you use Cloudflare CDN, that means the process of obtaining Let's Encrypt SSL Certificate will fail. To fix it, install `python-certbot-dns-cloudflare` package:
+
+```bash
+$ sudo apt install certbot python-certbot-dns-cloudflare
+```
+
+Read instructions [here how to get Cloudflare API Token and obtain certificates](https://certbot-dns-cloudflare.readthedocs.io/en/stable/). In short,
+
+**1)** Go to https://dash.cloudflare.com/profile/api-tokens and [get your API Token](https://support.cloudflare.com/hc/en-us/articles/200167836-Where-do-I-find-my-Cloudflare-API-key-).
+
+**2)** Create on the server `~/.secrets/certbot/` directory with `cloudflare.ini` file inside:
+
+```bash
+$ mkdir -p ~/.secrets/certbot/
+$ chmod 0700 ~/.secrets/
+$ touch ~/.secrets/certbot/cloudflare.ini
+$ chmod 0400 ~/.secrets/certbot/cloudflare.ini
+```
+
+**3)** Put inside `cloudflare.ini` file your Cloudflare token:
+
+```bash
+$ sudo nano ~/.secrets/certbot/cloudflare.ini
+```
+
+```bash
+# ~/.secrets/certbot/cloudflare.ini
+
+# Cloudflare API token (example) used by Certbot:
+dns_cloudflare_api_token = 0123456789abcdef0123456789abcdef01234567
+```
+
+**4)** Obtain certificates for all your domains declared in `procsd.yml` using _certbot-dns-cloudflare_ plugin:
+
+```bash
+# Example command for my-domain.com domain:
+
+$ sudo certbot certonly --dns-cloudflare --dns-cloudflare-credentials ~/.secrets/certbot/cloudflare.ini -d my-domain.com
+```
+
+**5)** If all went fine, update Nginx application config with new certificates (using certbot command). To get required certbot command type `$ procsd config certbot_command`, then execute it:
+
+```bash
+# Example command for my-domain.com domain:
+
+$ sudo certbot --agree-tos --no-eff-email --redirect --non-interactive --nginx -d my-domain.com --register-unsafely-without-email
+```
+
+All is done!
+
+</details><br>
+
+
 ## All available commands
 
 ```
 $ procsd --help
 
 Commands:
-  procsd --version, -v   # Print the version
-  procsd config          # Print config files based on current settings. Available types: sudoers, services
   procsd create          # Create and enable app services
   procsd destroy         # Stop, disable and remove app services
-  procsd disable         # Disable app target
-  procsd enable          # Enable app target
-  procsd exec            # Run single app process with environment
-  procsd help [COMMAND]  # Describe available commands or one specific command
-  procsd list            # List all app services
-  procsd logs            # Show app services logs
-  procsd restart         # Restart app services
   procsd start           # Start app services
-  procsd status          # Show app services status
   procsd stop            # Stop app services
+  procsd restart         # Restart app services
+  procsd enable          # Enable app target
+  procsd disable         # Disable app target
+  procsd logs            # Show app services logs
+  procsd status          # Show app services status
+  procsd list            # List all app services
+  procsd exec            # Run single app process with environment
+  procsd config          # Print config files based on current settings. Available types: sudoers, services, certbot_command
+  procsd help [COMMAND]  # Describe available commands or one specific command
+  procsd --version, -v   # Print the version
 ```
 
 
