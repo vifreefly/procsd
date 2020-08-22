@@ -105,44 +105,67 @@ module Procsd
     end
 
     desc "start", "Start app services"
-    def start
+    def start(service_name = nil)
       preload!
       say_target_not_exists and return unless target_exist?
 
-      say "Note: app target #{target_name} already started/active" if target_active?
-      if execute %W(sudo systemctl start #{target_name})
-        say("Started app services (#{target_name})", :green)
+      if service_name
+        full_name = to_full_name(service_name)
+        say "Note: app service #{full_name} already started/active" if service_active?(full_name)
+        if execute %W(sudo systemctl start #{full_name} --all)
+          say("Started app service (#{full_name})", :green)
+        end
+      else
+        say "Note: app target #{target_name} already started/active" if target_active?
+        if execute %W(sudo systemctl start #{target_name})
+          say("Started app services (#{target_name})", :green)
+        end
       end
     end
 
     desc "stop", "Stop app services"
-    def stop
+    def stop(service_name = nil)
       preload!
       say_target_not_exists and return unless target_exist?
 
-      say "Note: app target #{target_name} already stopped/inactive" if !target_active?
-      if execute %W(sudo systemctl stop #{target_name})
-        say("Stopped app services (#{target_name})", :green)
+      if service_name
+        full_name = to_full_name(service_name)
+        say "Note: app service #{full_name} already stopped/inactive" if !service_active?(full_name)
+        if execute %W(sudo systemctl stop #{full_name} --all)
+          say("Stopped app service (#{full_name})", :green)
+        end
+      else
+        say "Note: app target #{target_name} already stopped/inactive" if !target_active?
+        if execute %W(sudo systemctl stop #{target_name})
+          say("Stopped app services (#{target_name})", :green)
+        end
       end
     end
 
     desc "restart", "Restart app services"
-    def restart
+    def restart(service_name = nil)
       preload!
       say_target_not_exists and return unless target_exist?
 
-      # If one of the child services of a target has `ExecReload` and `ReloadPropagatedFrom`
-      # options defined, then use `reload-or-restart` to call all services (not the main target)
-      # because of systemd bug https://github.com/systemd/systemd/issues/10638
-      success =
-        if has_reload?
-          execute %W(sudo systemctl reload-or-restart #{app_name}-* --all)
-        else
-          execute %W(sudo systemctl restart #{target_name})
+      if service_name
+        full_name = to_full_name(service_name)
+        if execute %W(sudo systemctl reload-or-restart #{full_name} --all)
+          say("Restarted app service (#{full_name})", :green)
         end
+      else
+        # If one of the child services of a target has `ExecReload` and `ReloadPropagatedFrom`
+        # options defined, then use `reload-or-restart` to call all services (not the main target)
+        # because of systemd bug https://github.com/systemd/systemd/issues/10638
+        success =
+          if has_reload?
+            execute %W(sudo systemctl reload-or-restart #{app_name}-* --all)
+          else
+            execute %W(sudo systemctl restart #{target_name})
+          end
 
-      if success
-        say("Restarted app services (#{target_name})", :green)
+        if success
+          say("Restarted app services (#{target_name})", :green)
+        end
       end
     end
 
@@ -159,7 +182,7 @@ module Procsd
         command = %w(systemctl status --no-pager --output short-iso --all)
       end
 
-      command << (options["target"] ? target_name : "#{app_name}-#{service_name}*")
+      command << (options["target"] ? target_name : to_full_name(service_name))
       execute command, type: :exec
     end
 
@@ -376,8 +399,16 @@ module Procsd
       system "systemctl", "is-active", "--quiet", target_name
     end
 
+    def service_active?(service_name)
+      system "systemctl", "is-active", "--quiet", service_name
+    end
+
     def target_name
       "#{app_name}.target"
+    end
+
+    def to_full_name(service_name)
+      "#{app_name}-#{service_name}*"
     end
 
     def app_name
