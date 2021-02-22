@@ -321,7 +321,7 @@ Everything is done. Start app services (`procsd start`) and go to `http://my-dom
 
 #### Auto SSL using Certbot
 
-To generate Nginx config with free SSL certificate (from [Let’s Encrypt](https://letsencrypt.org/)) included, you need to install [Certbot](https://certbot.eff.org/) on the remote server first:
+To generate Nginx config with free SSL certificate (from [Let’s Encrypt](https://letsencrypt.org/)) included, you need to install [Certbot](https://certbot.eff.org/) on the remote server first. For Ubuntu 18.04 (check here instructions for other versions https://certbot.eff.org/lets-encrypt/ubuntufocal-nginx):
 
 ```bash
 $ sudo apt install software-properties-common
