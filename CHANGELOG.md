@@ -1,4 +1,8 @@
 # CHANGELOG
+## 0.5.5
+* Add: Allow to start/stop/restart particular service in the app target (example: `$ procsd start web`)
+* Add: RuntimeMaxSec option for process
+
 ## 0.5.4
 * Add: information how to use SSL integration with Cloudflare CDN enabled
 * Add: procsd config certbot_command command
