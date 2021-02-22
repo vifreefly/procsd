@@ -70,12 +70,13 @@ You can provide additional options for `create` command:
 ### Start application
 > Other control commands: `stop` and `restart`
 
+> You can start/stop/restart a particular process by providing it's name, i.e.: `$ procsd restart worker`
+
 ```
 deploy@server:~/sample_app$ procsd start
 
 Started app services (sample_app.target)
 ```
-
 
 ### Check the status
 > You can filter processes, like `$ procsd status worker` (show status only for worker processes) or `$ procsd status worker.2` (show status only for worker.2 process)
