@@ -519,9 +519,9 @@ Execute: journalctl --no-pager --no-hostname --all --output short-iso -n 3 --uni
 
 * You can use extended format of processes commands inside `procsd.yml` to provide additional restart/stop commands for each process:
 
-> All possible options: `ExecStart`, `ExecReload` and `ExecStop`
+> All possible options: [ExecStart](https://www.freedesktop.org/software/systemd/man/systemd.service.html#ExecStart=) (default command to start a process), [ExecReload](https://www.freedesktop.org/software/systemd/man/systemd.service.html#ExecReload=), and [ExecStop](https://www.freedesktop.org/software/systemd/man/systemd.service.html#ExecStop=).
 
-> If procsd.yml has `processes:` option defined, then content of Procfile will be ignored
+> If procsd.yml has `processes:` option defined, then content of Procfile (if it exists) will be ignored.
 
 ```yml
 app: sample_app
@@ -533,6 +533,18 @@ processes:
 ```
 
 Why? For example default Ruby on Rails application server [Puma](http://puma.io/) supports [Phased or Rolling restart](https://github.com/puma/puma/blob/master/docs/restart.md#normal-vs-hot-vs-phased-restart) feature. If you provide separate `ExecReload`command for a process, then this command will be called while executing `$ procsd restart` by systemd instead of just killing and starting process again.
+
+* Another option you can provide for each process is [RuntimeMaxSec](https://www.freedesktop.org/software/systemd/man/systemd.service.html#RuntimeMaxSec=). It is used to automatically restart a process every N period of time. Could be useful for worker types of processes (like Sidekiq) where process memory could increase while running:
+
+> Example values for RuntimeMaxSec: `30s` (30 seconds), `5m` (5 minutes), `3h` (3 hours), `1d` (1 day).
+
+```yml
+app: sample_app
+processes:
+  web:
+    ExecStart: bundle exec rails server -p $PORT
+    RuntimeMaxSec: 12h
+```
 
 * If you use Nginx integration but default Nginx requests timeout (60s) is too small for you, [you can set a custom timeout](https://serverfault.com/a/777753) in the global Nginx config.
 

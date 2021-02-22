@@ -18,6 +18,10 @@ ExecStop=/bin/bash -lc '<%= stop %>'
 ExecReload=/bin/bash -lc '<%= reload %>'
 <% end -%>
 
+<% if max_sec = config["commands"]["RuntimeMaxSec"] -%>
+RuntimeMaxSec=<%= max_sec %>
+<% end -%>
+
 Restart=always
 RestartSec=1
 TimeoutStopSec=30
