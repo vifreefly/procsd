@@ -420,7 +420,7 @@ module Procsd
 
       raise ConfigurationError, "Config file procsd.yml doesn't exists" unless File.exist? "procsd.yml"
       begin
-        procsd = YAML.load(ERB.new(File.read "procsd.yml").result)
+        procsd = YAML.safe_load(ERB.new(File.read "procsd.yml").result)
       rescue => e
         raise ConfigurationError, "Can't read procsd.yml: #{e.inspect}"
       end
@@ -433,7 +433,7 @@ module Procsd
         msg = "Procfile doesn't exists. Define processes in procsd.yml or create Procfile"
         raise ConfigurationError, msg unless File.exist? "Procfile"
         begin
-          procfile = YAML.load_file("Procfile")
+          procfile = YAML.safe_load_file("Procfile")
         rescue => e
           raise ConfigurationError, "Can't read Procfile: #{e.inspect}"
         end
