@@ -12,7 +12,7 @@ Can we have something similar on the cheap Ubuntu VPS from DigitalOcean? Yes we 
 
 > **Note:** Procsd works best with Capistrano integration: [vifreefly/capistrano-procsd](https://github.com/vifreefly/capistrano-procsd)
 
-Install `procsd` first: `$ gem install procsd`. Required Ruby version is `>= 2.3.0`.
+Install `procsd` first: `$ gem install procsd`. Required Ruby version is `>= 3.2.0`.
 
 Let's say you have following application's Procfile:
 
