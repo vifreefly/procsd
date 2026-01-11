@@ -58,7 +58,7 @@ module Procsd
         end
 
         if execute %w(sudo systemctl daemon-reload)
-          say("Reloaded configuraion (daemon-reload)", :green)
+          say("Reloaded configuration (daemon-reload)", :green)
         end
         say("App services were stopped, disabled and removed", :green)
 
@@ -289,7 +289,7 @@ module Procsd
       generator.generate_units(save: true)
 
       if execute %w(sudo systemctl daemon-reload)
-        say("Reloaded configuraion (daemon-reload)", :green)
+        say("Reloaded configuration (daemon-reload)", :green)
       end
 
       enable
