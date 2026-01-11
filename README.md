@@ -1,16 +1,12 @@
 # Procsd
 
-I do like the way how simple is managing of application processes in production on Heroku with [Procfile](https://devcenter.heroku.com/articles/procfile). How easily can be accessed application logs with [heroku logs](https://devcenter.heroku.com/articles/logging) command. Just type `heroku create` and you're good to go.
+I really like how simple it is to manage application processes in production on Heroku with [Procfile](https://devcenter.heroku.com/articles/procfile). How easily you can access application logs with the [heroku logs](https://devcenter.heroku.com/articles/logging) command. Just type `heroku create` and you're good to go.
 
-Can we have something similar on the cheap Ubuntu VPS from DigitalOcean? Yes we can, all we need is a **systemd wrapper** which allows to export application processes from Procfile to system services, and control them/check status/access logs using simple commands.
+Can we have something similar on a cheap Ubuntu VPS from DigitalOcean? Yes we can, all we need is a **systemd wrapper** that exports application processes from Procfile to system services, and controls them/checks status/accesses logs using simple commands.
 
-> These days most of Linux distributions (including Ubuntu) has systemd as a default system processes manager. That's why it is a good idea to use systemd for managing application processes in production (for simple cases).
+> These days most Linux distributions (including Ubuntu) have systemd as their default system processes manager. That's why it is a good idea to use systemd for managing application processes in production (for simple cases).
 
 ## Getting started
-
-> **Note:** latest version of Procsd is `0.5.3`. Since version `0.4.0` there are some breaking changes. Check the [CHANGELOG.md](CHANGELOG.md). To update to the latest version, run `$ gem update procsd` or `$ bundle update procsd` (if you have already installed procsd).
-
-> **Note:** Procsd works best with Capistrano integration: [vifreefly/capistrano-procsd](https://github.com/vifreefly/capistrano-procsd)
 
 Install `procsd` first: `$ gem install procsd`. Required Ruby version is `>= 3.2.0`.
 
@@ -20,7 +16,7 @@ Let's say you have following application's Procfile:
 web: bundle exec rails server -p $PORT
 worker: bundle exec sidekiq -e $RAILS_ENV
 ```
-and you want to have one instance of web process && two instances of worker process. Create inside application directory `procsd.yml` config file:
+and you want to have one instance of the web process and two instances of the worker process. Create a `procsd.yml` config file inside the application directory:
 
 ```yaml
 app: sample_app
@@ -50,7 +46,7 @@ Create: /etc/systemd/system/sample_app-web.1.service
 Create: /etc/systemd/system/sample_app-worker.1.service
 Create: /etc/systemd/system/sample_app-worker.2.service
 Create: /etc/systemd/system/sample_app.target
-Reloaded configuraion (daemon-reload)
+Reloaded configuration (daemon-reload)
 Created symlink /etc/systemd/system/multi-user.target.wants/sample_app.target → /etc/systemd/system/sample_app.target.
 Enabled app target sample_app.target
 App services were created and enabled. Run `start` to start them
@@ -62,15 +58,15 @@ deploy ALL=NOPASSWD: /bin/systemctl start sample_app.target, /bin/systemctl stop
 You can provide additional options for `create` command:
 * `--user` - name of the user, default is current _$USER_ env variable
 * `--dir` - application's working directory, default is current _$PWD_ env variable
-* `--path` - $PATH to include to the each service. Default is current _$PATH_ env variable
-* `--add-to-sudoers` - if option present, procsd will create sudoers rule file `/etc/sudoers.d/app_name` which allow to start/stop/restart app services without a password prompt (passwordless sudo).
-* `--or-restart` - if option provided and services already created, procsd will skip creation and call instead `restart` command. Otherwise (if services are not present), they will be created and (in additional) started. It's useful option for deployment tools like Capistrano, Mina, etc.
+* `--path` - $PATH to include in each service. Default is current _$PATH_ env variable
+* `--add-to-sudoers` - if this option is present, procsd will create a sudoers rule file `/etc/sudoers.d/app_name` which allows starting/stopping/restarting app services without a password prompt (passwordless sudo).
+* `--or-restart` - if this option is provided and services are already created, procsd will skip creation and call the `restart` command instead. Otherwise (if services are not present), they will be created and additionally started. This is a useful option for deployment tools like Capistrano, Mina, etc.
 
 
 ### Start application
 > Other control commands: `stop` and `restart`
 
-> You can start/stop/restart a particular process by providing it's name, i.e.: `$ procsd restart worker`
+> You can start/stop/restart a particular process by providing its name, e.g.: `$ procsd restart worker`
 
 ```
 deploy@server:~/sample_app$ procsd start
@@ -206,7 +202,7 @@ Puma starting in single mode...
 Use Ctrl-C to stop
 ```
 
-`procsd exec` requres all the environment variables defined in `environment` section of `procsd.yml` config file.
+`procsd exec` requires all the environment variables defined in `environment` section of `procsd.yml` config file.
 
 Sometimes in development mode you need different environment configuration. For that you can add additional environment section `dev_environment` and require it as well using `--dev` flag, example:
 
@@ -227,13 +223,13 @@ dev_environment:
 deploy@server:~/sample_app$ procsd exec web --dev
 ```
 
-> In case if `dev_environment` has env variable with the same name like in `environment`, this variable will be rewritten with value from `dev_environment`.
+> If `dev_environment` has an env variable with the same name as one in `environment`, it will be overwritten with the value from `dev_environment`.
 
 
 ### Nginx integration (with automatic HTTPS)
-> Before make sure that you have Nginx installed `sudo apt install nginx` and running `sudo systemctl status nginx`.
+> First, make sure that you have Nginx installed (`sudo apt install nginx`) and running (`sudo systemctl status nginx`).
 
-If one of your application processes is a web process, you can automatically setup Nginx (reverse proxy) config for it. Why? For example to serve static files (assets, images, and all other files located in `public` folder or another customly defined folder) directly using fast Nginx, rather than application server. Or to enable SSL support (see below).
+If one of your application processes is a web process, you can automatically set up an Nginx (reverse proxy) config for it. Why? For example, to serve static files (assets, images, and all other files located in `public` folder or another custom folder) directly using Nginx, rather than the application server. Or to enable SSL support (see below).
 
 Add to your procsd.yml `nginx` section with `server_name` option defined:
 
@@ -267,7 +263,7 @@ Create: /etc/systemd/system/sample_app-web.1.service
 Create: /etc/systemd/system/sample_app-worker.1.service
 Create: /etc/systemd/system/sample_app-worker.2.service
 Create: /etc/systemd/system/sample_app.target
-Reloaded configuraion (daemon-reload)
+Reloaded configuration (daemon-reload)
 Created symlink /etc/systemd/system/multi-user.target.wants/sample_app.target → /etc/systemd/system/sample_app.target.
 Enabled app target sample_app.target
 App services were created and enabled. Run `start` to start them
@@ -345,7 +341,7 @@ Configuration is done. **Make sure that all domains defined in procsd (nginx.ser
 
 > By default Certbot obtaining certificate from _Let's Encrypt_ without a contact email. If you want to provide contact email, define env variable `CERTBOT_EMAIL` with your email in the `.env` file.
 
-<details/>
+<details>
   <summary>Output</summary>
 
 ```
@@ -356,7 +352,7 @@ Create: /etc/systemd/system/sample_app-web.1.service
 Create: /etc/systemd/system/sample_app-worker.1.service
 Create: /etc/systemd/system/sample_app-worker.2.service
 Create: /etc/systemd/system/sample_app.target
-Reloaded configuraion (daemon-reload)
+Reloaded configuration (daemon-reload)
 Created symlink /etc/systemd/system/multi-user.target.wants/sample_app.target → /etc/systemd/system/sample_app.target.
 Enabled app target sample_app.target
 App services were created and enabled. Run `start` to start them
@@ -409,7 +405,7 @@ Successfully installed SSL cert using certbot
 That's it. Start app services (`procsd start`) and go to `https://my-domain.com` where you'll see your application proxying with Nginx and SSL enabled.
 
 
-<details/>
+<details>
   <summary>Note about using Cloudflare CDN</summary><br>
 
 If you use Cloudflare CDN, that means the process of obtaining Let's Encrypt SSL Certificate will fail. To fix it, install `python-certbot-dns-cloudflare` package:
@@ -490,15 +486,15 @@ Commands:
 
 ## Difference with Foreman
 
-[Foreman](http://ddollar.github.io/foreman/) itself designed for _development_ (not production) usage only and doing it great. Yes, Foreman allows to [export](http://ddollar.github.io/foreman/#EXPORTING) Procfile to the Systemd, but that's all. After export you have to manually use `systemctl` and `journalctl` to manage/check exported services. Procsd not only exports application, but provides [simple commands](#all-available-commands) to manage exported target.
+[Foreman](http://ddollar.github.io/foreman/) itself is designed for _development_ (not production) usage only and does it great. Yes, Foreman allows you to [export](http://ddollar.github.io/foreman/#EXPORTING) Procfile to Systemd, but that's all. After export you have to manually use `systemctl` and `journalctl` to manage/check exported services. Procsd not only exports the application, but provides [simple commands](#all-available-commands) to manage the exported target.
 
-* Foreman systemd export uses [dymamic](https://fedoramagazine.org/systemd-template-unit-files/) services templates and as a result generates quite a lot of files/folders in the systemd directory even for a simple application.
+* Foreman systemd export uses [dynamic](https://fedoramagazine.org/systemd-template-unit-files/) services templates and as a result generates quite a lot of files/folders in the systemd directory even for a simple application.
 
-* Services generated using Foreman contain [$PORT variable](http://ddollar.github.io/foreman/#PROCFILE) in their names (and it's [undocumented](http://ddollar.github.io/foreman/#SYSTEMD-EXPORT) logic). For example for Procfile and formation `web=1,worker=2` (from example above), exported services with Foreman will be: `sample_app-web@2500.service`, `sample_app-worker@2600.service` and `sample_app-worker@2601.service`. My opinion about this approach: it's complicated. Why is there required PORT variable in the services names? Procsd following one rule: simplicity. For export it uses static service files (that means for each process will be generated it's own service file) and services names have predictable, Heroku-like names.
+* Services generated using Foreman contain the [$PORT variable](http://ddollar.github.io/foreman/#PROCFILE) in their names (and it's [undocumented](http://ddollar.github.io/foreman/#SYSTEMD-EXPORT) logic). For example, for Procfile and formation `web=1,worker=2` (from the example above), exported services with Foreman will be: `sample_app-web@2500.service`, `sample_app-worker@2600.service` and `sample_app-worker@2601.service`. My opinion about this approach: it's complicated. Why is the PORT variable required in the service names? Procsd follows one rule: simplicity. For export it uses static service files (that means for each process its own service file will be generated) and service names are predictable, Heroku-like.
 
 * Procsd export can provide additional stop/restart commands for each service (see _Notes_ below).
 
-* To delete existing app services from Systemd, there is `procsd destroy` command. It is doing the following: stop services if they are running, delete all required systemd files from systemd directory, and restart systemd (`daemon-reload`). This command especially useful while testing, when you need frequently create/update configuration.
+* To delete existing app services from Systemd, there is the `procsd destroy` command. It does the following: stops services if they are running, deletes all required systemd files from the systemd directory, and restarts systemd (`daemon-reload`). This command is especially useful while testing, when you need to frequently create/update configuration.
 
 
 ## Notes
@@ -555,7 +551,7 @@ processes:
 https://github.com/vifreefly/capistrano-procsd
 
 
-## ToDo
+## TODO
 * Add `procsd update` command to quickly update changed configuration (application units, nginx config, etc), instead of calling two separate commands (`procsd destroy` and `procsd create`)
 
 
