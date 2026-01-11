@@ -1,4 +1,13 @@
 # CHANGELOG
+## 0.6.0
+* **Breaking change:** Require Ruby >= 3.2.0 (dropping support for EOL versions)
+* Fix: Use YAML.safe_load instead of deprecated YAML.load
+* Fix: Use new `trim_mode` keyword argument for ERB.new
+* Change: Relax bundler/rake version constraints to allow modern versions
+* Add: Test coverage for generator output
+
+Thanks to [@botandrose](https://github.com/botandrose) (Micah Geisel) for contributions!
+
 ## 0.5.5
 * Add: Allow to start/stop/restart particular service in the app target (example: `$ procsd start web`)
 * Add: RuntimeMaxSec option for process
