@@ -99,7 +99,7 @@ module Procsd
       b.local_variable_set(:config, conf)
       template_path = File.join(File.dirname(__FILE__), "templates/#{template_name}.erb")
       content = File.read(template_path)
-      ERB.new(content, nil, "-").result(b)
+      ERB.new(content, trim_mode: "-").result(b)
     end
 
     def write_file!(dest_path, content)
