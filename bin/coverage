@@ -1,14 +1,15 @@
 #!/usr/bin/env ruby
 
-require "simplecov"
-
 gem_src = ENV.fetch("COVERAGE_ROOT", File.expand_path("../..", __FILE__))
+
+require "simplecov"
 
 SimpleCov.start do
   root gem_src
   coverage_dir ENV.fetch("COVERAGE_DIR", "coverage")
   command_name ENV.fetch("COVERAGE_NAME", "acceptance")
   enable_coverage :branch
+  track_files "#{gem_src}/lib/**/*.rb"
 end
 
 $LOAD_PATH.unshift(File.join(gem_src, "lib"))
