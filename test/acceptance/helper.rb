@@ -19,6 +19,9 @@ module Helper
   IMAGE_NAME = "procsd-test"
   GEM_ROOT = File.expand_path("../..", __dir__)
   GEM_BUILD_DIR = "/tmp/procsd-test-gems"
+  COVERAGE_DIR = File.join(GEM_ROOT, "coverage")
+  CONTAINER_COVERAGE_DIR = "/tmp/coverage"
+  CONTAINER_GEM_SRC = "/gem-src"
 
   class Container
     attr_reader :id, :name
@@ -38,6 +41,7 @@ module Helper
         "--cgroupns=host",
         "-v", "/sys/fs/cgroup:/sys/fs/cgroup:rw",
         "-v", "#{GEM_BUILD_DIR}:/gem:ro",
+        "-v", "#{GEM_ROOT}:#{CONTAINER_GEM_SRC}:ro",
         IMAGE_NAME
       ]
 
@@ -47,11 +51,13 @@ module Helper
       @id = output.strip
       wait_for_systemd
       install_gem
+      setup_coverage
       self
     end
 
     def stop
       return unless @id
+      copy_coverage_results
       system("podman", "stop", "-t", "1", @name, out: File::NULL, err: File::NULL)
       system("podman", "rm", "-f", @name, out: File::NULL, err: File::NULL)
       @id = nil
@@ -103,6 +109,21 @@ module Helper
 
     def install_gem
       exec_as_root("gem install /gem/procsd-test.gem --local --ignore-dependencies --no-document")
+    end
+
+    def setup_coverage
+      exec_as_root("mkdir -p #{CONTAINER_COVERAGE_DIR}")
+      exec_as_root("chown testuser:testuser #{CONTAINER_COVERAGE_DIR}")
+    end
+
+    def copy_coverage_results
+      FileUtils.mkdir_p(COVERAGE_DIR)
+      temp_dir = "/tmp/procsd-coverage-#{SecureRandom.hex(4)}"
+      system("podman", "cp", "#{@name}:#{CONTAINER_COVERAGE_DIR}/.", temp_dir, out: File::NULL, err: File::NULL)
+      if File.directory?(temp_dir)
+        FileUtils.cp_r(Dir.glob("#{temp_dir}/*"), COVERAGE_DIR)
+        FileUtils.rm_rf(temp_dir)
+      end
     end
 
     def copy_content_to_container(path, content)
@@ -191,6 +212,9 @@ module Helper
   end
 
   def run_procsd(command)
-    container.exec("procsd #{command}")
+    container.exec(
+      "COVERAGE_ROOT=#{CONTAINER_GEM_SRC} COVERAGE_DIR=#{CONTAINER_COVERAGE_DIR} " \
+      "#{CONTAINER_GEM_SRC}/bin/coverage procsd #{command}"
+    )
   end
 end

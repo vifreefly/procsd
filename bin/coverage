@@ -1,0 +1,18 @@
+#!/usr/bin/env ruby
+
+require "simplecov"
+
+gem_src = ENV.fetch("COVERAGE_ROOT", File.expand_path("../..", __FILE__))
+
+SimpleCov.start do
+  root gem_src
+  coverage_dir ENV.fetch("COVERAGE_DIR", "coverage")
+  command_name "acceptance-#{Process.pid}"
+  enable_coverage :branch
+end
+
+$LOAD_PATH.unshift(File.join(gem_src, "lib"))
+
+exe = ARGV.shift
+exe_path = File.join(gem_src, "exe", exe)
+load exe_path
