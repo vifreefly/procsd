@@ -9,8 +9,6 @@ RUN apt-get update && apt-get install -y \
     systemd-sysv \
     dbus \
     ruby \
-    ruby-dev \
-    build-essential \
     sudo \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*

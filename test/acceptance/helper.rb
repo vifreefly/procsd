@@ -18,7 +18,6 @@ module Helper
   DOCKERFILE_PATH = File.expand_path("Dockerfile", __dir__)
   IMAGE_NAME = "procsd-test"
   GEM_ROOT = File.expand_path("../..", __dir__)
-  GEM_BUILD_DIR = "/tmp/procsd-test-gems"
   COVERAGE_DIR = File.join(GEM_ROOT, "coverage")
   CONTAINER_COVERAGE_DIR = "/tmp/coverage"
   CONTAINER_GEM_SRC = "/gem-src"
@@ -40,7 +39,6 @@ module Helper
         "--privileged",
         "--cgroupns=host",
         "-v", "/sys/fs/cgroup:/sys/fs/cgroup:rw",
-        "-v", "#{GEM_BUILD_DIR}:/gem:ro",
         "-v", "#{GEM_ROOT}:#{CONTAINER_GEM_SRC}:ro",
         IMAGE_NAME
       ]
@@ -50,7 +48,6 @@ module Helper
 
       @id = output.strip
       wait_for_systemd
-      install_gem
       setup_coverage
       self
     end
@@ -107,23 +104,27 @@ module Helper
 
     private
 
-    def install_gem
-      exec_as_root("gem install /gem/procsd-test.gem --local --ignore-dependencies --no-document")
-    end
-
     def setup_coverage
       exec_as_root("mkdir -p #{CONTAINER_COVERAGE_DIR}")
       exec_as_root("chown testuser:testuser #{CONTAINER_COVERAGE_DIR}")
     end
 
     def copy_coverage_results
-      FileUtils.mkdir_p(COVERAGE_DIR)
-      temp_dir = "/tmp/procsd-coverage-#{SecureRandom.hex(4)}"
-      system("podman", "cp", "#{@name}:#{CONTAINER_COVERAGE_DIR}/.", temp_dir, out: File::NULL, err: File::NULL)
-      if File.directory?(temp_dir)
-        FileUtils.cp_r(Dir.glob("#{temp_dir}/*"), COVERAGE_DIR)
-        FileUtils.rm_rf(temp_dir)
+      require "json"
+      temp_file = "/tmp/procsd-coverage-#{SecureRandom.hex(4)}.json"
+      system("podman", "cp", "#{@name}:#{CONTAINER_COVERAGE_DIR}/.resultset.json", temp_file, out: File::NULL, err: File::NULL)
+
+      container_data = JSON.parse(File.read(temp_file))
+      container_data.each do |_, result|
+        result["coverage"].transform_keys! { |path| path.sub(CONTAINER_GEM_SRC, GEM_ROOT) }
       end
+
+      FileUtils.mkdir_p(COVERAGE_DIR)
+      resultset_path = File.join(COVERAGE_DIR, ".resultset.json")
+      existing_data = File.exist?(resultset_path) ? JSON.parse(File.read(resultset_path)) : {}
+      File.write(resultset_path, JSON.generate(existing_data.merge(container_data)))
+    ensure
+      FileUtils.rm_f(temp_file) if temp_file
     end
 
     def copy_content_to_container(path, content)
@@ -142,18 +143,9 @@ module Helper
     end
 
     def build_image
-      build_gem
       cmd = ["podman", "build", "-t", IMAGE_NAME, "-f", DOCKERFILE_PATH, File.dirname(DOCKERFILE_PATH)]
       output, status = Open3.capture2e(*cmd)
       raise "Failed to build image: #{output}" unless status.success?
-    end
-
-    def build_gem
-      FileUtils.mkdir_p(GEM_BUILD_DIR)
-      gem_path = File.join(GEM_BUILD_DIR, "procsd-test.gem")
-      Dir.chdir(GEM_ROOT) do
-        system("gem", "build", "procsd.gemspec", "-o", gem_path, out: File::NULL, err: File::NULL)
-      end
     end
 
     def wait_for_systemd(timeout: 30)
