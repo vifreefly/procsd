@@ -29,7 +29,7 @@ RUN useradd -m -s /bin/bash testuser && \
     echo "testuser ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/testuser
 
 # Install gems needed by procsd
-RUN gem install thor dotenv --no-document
+RUN gem install thor dotenv simplecov --no-document
 
 # Create app directory
 RUN mkdir -p /home/testuser/myapp && chown testuser:testuser /home/testuser/myapp
