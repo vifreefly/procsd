@@ -1,4 +1,4 @@
-require 'yaml'
+require_relative 'config'
 require_relative 'generator'
 
 module Procsd
@@ -15,20 +15,19 @@ module Procsd
     def create
       raise ConfigurationError, "Can't find systemctl executable available" unless in_path?("systemctl")
 
-      preload!
-      if @config[:nginx]
+      if conf[:nginx]
         raise ConfigurationError, "Can't find nginx executable available" unless in_path?("nginx")
 
-        public_folder_path = @config[:nginx]["public_folder_path"] || "public"
+        public_folder_path = conf[:nginx]["public_folder_path"] || "public"
         unless Dir.exist?(File.join options["dir"], public_folder_path)
           raise ConfigurationError, "Missing public folder path to use with Nginx"
         end
 
-        unless @config.dig(:environment, "PORT")
+        unless conf.dig(:environment, "PORT")
           raise ConfigurationError, "Please provide PORT environment variable in procsd.yml to use with Nginx"
         end
 
-        if @config[:nginx]["ssl"]
+        if conf[:nginx]["ssl"]
           raise ConfigurationError, "Can't find certbot executable available" unless in_path?("certbot")
         end
       end
@@ -46,8 +45,6 @@ module Procsd
 
     desc "destroy", "Stop, disable and remove app services"
     def destroy
-      preload!
-
       if target_exist?
         stop
         disable
@@ -67,7 +64,7 @@ module Procsd
           say("Sudoers file removed", :green) if execute %W(sudo rm #{sudoers_file_path})
         end
 
-        if @config[:nginx]
+        if conf[:nginx]
           enabled_path = File.join(NGINX_DIR, "sites-enabled", app_name)
           available_path = File.join(NGINX_DIR, "sites-available", app_name)
           [enabled_path, available_path].each do |path|
@@ -84,7 +81,6 @@ module Procsd
 
     desc "enable", "Enable app target"
     def enable
-      preload!
       say_target_not_exists and return unless target_exist?
 
       say "Note: app target #{target_name} already enabled" if target_enabled?
@@ -95,7 +91,6 @@ module Procsd
 
     desc "disable", "Disable app target"
     def disable
-      preload!
       say_target_not_exists and return unless target_exist?
 
       say "Note: app target #{target_name} already disabled" if !target_enabled?
@@ -106,7 +101,6 @@ module Procsd
 
     desc "start", "Start app services"
     def start(service_name = nil)
-      preload!
       say_target_not_exists and return unless target_exist?
 
       if service_name
@@ -125,7 +119,6 @@ module Procsd
 
     desc "stop", "Stop app services"
     def stop(service_name = nil)
-      preload!
       say_target_not_exists and return unless target_exist?
 
       if service_name
@@ -144,7 +137,6 @@ module Procsd
 
     desc "restart", "Restart app services"
     def restart(service_name = nil)
-      preload!
       say_target_not_exists and return unless target_exist?
 
       if service_name
@@ -173,7 +165,6 @@ module Procsd
     option :target, type: :boolean, banner: "Show main target status"
     option :short,  type: :boolean, banner: "Show services three and their status shortly"
     def status(service_name = nil)
-      preload!
       say_target_not_exists and return unless target_exist?
 
       if options["short"]
@@ -193,8 +184,6 @@ module Procsd
     option :priority, aliases: :p, type: :string, banner: "Show messages with a particular log level"
     option :grep, aliases: :g, type: :string, banner: "Filter output to entries where message matches the provided query"
     def logs(service_name = nil)
-      preload!
-
       command = %w(journalctl --no-pager --no-hostname --all --output short-iso)
       command.push("-n", options.fetch("num", "100"))
       command.push("-f") if options["tail"]
@@ -208,7 +197,6 @@ module Procsd
 
     desc "list", "List all app services"
     def list
-      preload!
       say_target_not_exists and return unless target_exist?
 
       command = %W(systemctl list-dependencies #{target_name})
@@ -217,10 +205,8 @@ module Procsd
 
     desc "config", "Print config files based on current settings. Available types: sudoers, services, certbot_command"
     def config(name)
-      preload!
-
       options = { "user" => ENV["USER"], "dir" => ENV["PWD"], "path" => `/bin/bash -ilc 'echo $PATH'`.strip }
-      generator = Generator.new(@config, options)
+      generator = Generator.new(conf, options)
 
       case name
       when "sudoers"
@@ -246,14 +232,12 @@ module Procsd
     desc "exec", "Run single app process with environment"
     option :dev, type: :boolean, banner: "Require dev_environment (in additional to base env) defined in procsd.yml"
     def __exec(process_name)
-      preload!
-
-      start_cmd = @config[:processes].dig(process_name, "commands", "ExecStart")
+      start_cmd = conf[:processes].dig(process_name, "commands", "ExecStart")
       raise ArgumentError, "Process is not defined: #{process_name}" unless start_cmd
 
-      process_env = @config[:environment].each { |k, v| @config[:environment][k] = v.to_s }
+      process_env = conf[:environment].each { |k, v| conf[:environment][k] = v.to_s }
       if options["dev"]
-        dev_env = @config[:dev_environment].each { |k, v| @config[:dev_environment][k] = v.to_s }
+        dev_env = conf[:dev_environment].each { |k, v| conf[:dev_environment][k] = v.to_s }
         process_env.merge!(dev_env)
       end
 
@@ -285,7 +269,7 @@ module Procsd
     def perform_create
       return unless valid_create_options?(options)
 
-      generator = Generator.new(@config, options)
+      generator = Generator.new(conf, options)
       generator.generate_units(save: true)
 
       if execute %w(sudo systemctl daemon-reload)
@@ -315,7 +299,7 @@ module Procsd
         puts generator.generate_sudoers(options["user"], has_reload: has_reload?)
       end
 
-      if nginx = @config[:nginx]
+      if nginx = conf[:nginx]
         generator.generate_nginx_conf(save: true)
         say("Nginx config created", :green)
 
@@ -341,7 +325,7 @@ module Procsd
     def get_certbot_command
       command = %w(sudo certbot --agree-tos --no-eff-email --redirect --non-interactive --nginx)
 
-      @config[:nginx]["server_name"].split(" ").map(&:strip).each do |domain|
+      conf[:nginx]["server_name"].split(" ").map(&:strip).each do |domain|
         command.push("-d", domain)
       end
 
@@ -357,12 +341,12 @@ module Procsd
     end
 
     def has_reload?
-      @config[:processes].any? { |name, values| values.dig("commands", "ExecReload") }
+      conf[:processes].any? { |name, values| values.dig("commands", "ExecReload") }
     end
 
     def units
       all = [target_name]
-      @config[:processes].each do |name, values|
+      conf[:processes].each do |name, values|
         values["size"].times { |i| all << "#{app_name}-#{name}.#{i + 1}.service" }
       end
 
@@ -389,7 +373,7 @@ module Procsd
     end
 
     def systemd_dir
-      @config[:systemd_dir]
+      conf[:systemd_dir]
     end
 
     def target_enabled?
@@ -413,57 +397,11 @@ module Procsd
     end
 
     def app_name
-      @config[:app]
+      conf[:app]
     end
 
-    def preload!
-      @config = { processes: {}}
-
-      raise ConfigurationError, "Config file procsd.yml doesn't exists" unless File.exist? "procsd.yml"
-      begin
-        procsd = YAML.safe_load(ERB.new(File.read "procsd.yml").result)
-      rescue => e
-        raise ConfigurationError, "Can't read procsd.yml: #{e.inspect}"
-      end
-
-      raise ConfigurationError, "Missing app name in the procsd.yml file" unless procsd["app"]
-      @config[:app] = procsd["app"]
-
-      # If procsd.yml doesn't contains processes defined, try to read Procfile
-      unless procsd["processes"]
-        msg = "Procfile doesn't exists. Define processes in procsd.yml or create Procfile"
-        raise ConfigurationError, msg unless File.exist? "Procfile"
-        begin
-          procfile = YAML.safe_load_file("Procfile")
-        rescue => e
-          raise ConfigurationError, "Can't read Procfile: #{e.inspect}"
-        end
-      end
-
-      if procsd["formation"]
-        formation = procsd["formation"].split(",").map { |f| f.split("=") }.to_h
-        formation.each { |k, v| formation[k] = v.to_i }
-      else
-        formation = {}
-      end
-
-      processes = procsd["processes"] || procfile
-      processes.each do |process_name, opts|
-        if opts.kind_of?(Hash)
-          raise ConfigurationError, "Missing ExecStart command for `#{process_name}` process" unless opts["ExecStart"]
-          @config[:processes][process_name] = { "commands" => opts }
-        else
-          @config[:processes][process_name] = { "commands" => { "ExecStart" => opts }}
-        end
-
-        @config[:processes][process_name]["size"] = formation[process_name] || 1
-      end
-
-      @config[:environment] = procsd["environment"] || {}
-      @config[:dev_environment] = procsd["dev_environment"] || {}
-
-      @config[:systemd_dir] = procsd["systemd_dir"] || DEFAULT_SYSTEMD_DIR
-      @config[:nginx] = procsd["nginx"]
+    def conf
+      @conf ||= Config.load.to_h
     end
   end
 end
