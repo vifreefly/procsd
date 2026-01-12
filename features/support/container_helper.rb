@@ -1,20 +1,9 @@
-$LOAD_PATH.unshift File.expand_path("../../../lib", __FILE__)
-
-require "minitest/autorun"
 require "open3"
 require "securerandom"
 require "fileutils"
+require "json"
 
-module Helper
-  # minitest hooks
-  def setup
-    setup_container
-  end
-
-  def teardown
-    teardown_container
-  end
-
+module ContainerHelper
   DOCKERFILE_PATH = File.expand_path("Dockerfile", __dir__)
   IMAGE_NAME = "procsd-test"
   GEM_ROOT = File.expand_path("../..", __dir__)
@@ -60,8 +49,10 @@ module Helper
       @id = nil
     end
 
-    def exec(command, user: "testuser", dir: "/home/testuser/myapp")
-      full_cmd = ["podman", "exec", "-e", "USER=#{user}", "-u", user, "-w", dir, @name, "bash", "-lc", command]
+    def exec(command, user: "testuser", dir: "/home/testuser/myapp", env: {})
+      full_cmd = ["podman", "exec", "-e", "USER=#{user}"]
+      env.each { |k, v| full_cmd += ["-e", "#{k}=#{v}"] }
+      full_cmd += ["-u", user, "-w", dir, @name, "bash", "-lc", command]
       stdout, stderr, status = Open3.capture3(*full_cmd)
       Result.new(stdout, stderr, status.exitstatus)
     end
@@ -110,19 +101,20 @@ module Helper
     end
 
     def copy_coverage_results
-      require "json"
       temp_file = "/tmp/procsd-coverage-#{SecureRandom.hex(4)}.json"
       system("podman", "cp", "#{@name}:#{CONTAINER_COVERAGE_DIR}/.resultset.json", temp_file, out: File::NULL, err: File::NULL)
+
+      return unless File.exist?(temp_file)
 
       container_data = JSON.parse(File.read(temp_file))
       container_data.each do |_, result|
         result["coverage"].transform_keys! { |path| path.sub(CONTAINER_GEM_SRC, GEM_ROOT) }
       end
 
+      # Write to a unique file - SimpleCov.collate will merge them
       FileUtils.mkdir_p(COVERAGE_DIR)
-      resultset_path = File.join(COVERAGE_DIR, ".resultset.json")
-      existing_data = File.exist?(resultset_path) ? JSON.parse(File.read(resultset_path)) : {}
-      File.write(resultset_path, JSON.generate(existing_data.merge(container_data)))
+      resultset_path = File.join(COVERAGE_DIR, ".resultset-#{@name}.json")
+      File.write(resultset_path, JSON.generate(container_data))
     ensure
       FileUtils.rm_f(temp_file) if temp_file
     end
@@ -180,33 +172,5 @@ module Helper
     def output
       @stdout + @stderr
     end
-  end
-
-  def setup_container
-    @container = Container.new
-    @container.start
-  end
-
-  def teardown_container
-    @container&.stop
-  end
-
-  def container
-    @container
-  end
-
-  def create_procsd_yml(content)
-    container.write_file("/home/testuser/myapp/procsd.yml", content)
-  end
-
-  def create_procfile(content)
-    container.write_file("/home/testuser/myapp/Procfile", content)
-  end
-
-  def run_procsd(command)
-    container.exec(
-      "COVERAGE_ROOT=#{CONTAINER_GEM_SRC} COVERAGE_DIR=#{CONTAINER_COVERAGE_DIR} " \
-      "#{CONTAINER_GEM_SRC}/bin/coverage procsd #{command}"
-    )
   end
 end
