@@ -52,7 +52,13 @@ module ContainerHelper
     def exec(command, user: "testuser", dir: "/home/testuser/myapp", env: {})
       full_cmd = ["podman", "exec", "-e", "USER=#{user}"]
       env.each { |k, v| full_cmd += ["-e", "#{k}=#{v}"] }
-      full_cmd += ["-u", user, "-w", dir, @name, "bash", "-lc", command]
+
+      # Filter bash job control warnings from procsd's `/bin/bash -ilc` PATH detection
+      # FIXME can we address this by removing interactive login shell usage in procsd?
+      # I don't think its needed to fully evaluate PATH setup, e.g. ~/.bashrc
+      wrapped_command = "{ #{command}; } 2> >(grep -v 'bash: cannot set terminal process group\\|bash: no job control' >&2)"
+
+      full_cmd += ["-u", user, "-w", dir, @name, "bash", "-c", wrapped_command]
       stdout, stderr, status = Open3.capture3(*full_cmd)
       Result.new(stdout, stderr, status.exitstatus)
     end

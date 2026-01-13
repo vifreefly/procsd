@@ -10,6 +10,8 @@ SimpleCov.start do
   command_name ENV.fetch("COVERAGE_NAME", "acceptance")
   enable_coverage :branch
   track_files "#{gem_src}/lib/**/*.rb"
+  formatter SimpleCov::Formatter::SimpleFormatter
+  print_error_status = false
 end
 
 $LOAD_PATH.unshift(File.join(gem_src, "lib"))
