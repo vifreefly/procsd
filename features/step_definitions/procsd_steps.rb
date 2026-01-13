@@ -16,16 +16,22 @@ When("I run {string}") do |command|
   )
 end
 
+def procsd_output
+  @result.output.strip
+end
+
 Then("the command should succeed") do
   expect(@result).to be_success, "Command failed: #{@result.output}"
 end
 
-Then("the command should fail") do
-  expect(@result).not_to be_success
+Then("the command should succeed with:") do |expected|
+  expect(@result).to be_success, "Command failed: #{@result.output}"
+  expect(procsd_output).to eq(expected.strip)
 end
 
-Then("the output should contain {string}") do |text|
-  expect(@result.output).to include(text)
+Then("the command should fail with:") do |expected|
+  expect(@result).not_to be_success, "Command succeeded unexpectedly: #{@result.output}"
+  expect(procsd_output).to eq(expected.strip)
 end
 
 Then("the systemd directory should contain {string}") do |filename|
@@ -47,6 +53,23 @@ end
 
 Then("the service {string} should be active") do |service_name|
   expect(@container.service_active?(service_name)).to be true
+end
+
+Then("the target {string} should not be active") do |target_name|
+  expect(@container.service_active?(target_name)).to be false
+end
+
+Then("the service {string} should not be active") do |service_name|
+  expect(@container.service_active?(service_name)).to be false
+end
+
+Then("the target {string} should not be enabled") do |target_name|
+  expect(@container.service_enabled?(target_name)).to be false
+end
+
+Then("the systemd directory should not contain {string}") do |filename|
+  files = @container.list_service_files("*")
+  expect(files).not_to include(filename)
 end
 
 Then("the file {string} should contain:") do |path, content|
