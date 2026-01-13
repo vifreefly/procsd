@@ -375,7 +375,8 @@ module Procsd
       when :system
         system *command
       when :exec
-        exec *command
+        system *command
+        exit($?.exitstatus || 1)
       end
     end
 

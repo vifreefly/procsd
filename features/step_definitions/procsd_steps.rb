@@ -6,6 +6,10 @@ Given("a Procfile with:") do |content|
   @container.write_file("/home/testuser/myapp/Procfile", content)
 end
 
+When("I wait {int} seconds") do |seconds|
+  sleep(seconds)
+end
+
 When("I run {string}") do |command|
   @result = @container.exec(
     "#{ContainerHelper::CONTAINER_GEM_SRC}/bin/coverage #{command}",
@@ -32,6 +36,20 @@ end
 Then("the command should fail with:") do |expected|
   expect(@result).not_to be_success, "Command succeeded unexpectedly: #{@result.output}"
   expect(procsd_output).to eq(expected.strip)
+end
+
+Then("the output should match patterns:") do |patterns|
+  output_lines = procsd_output.lines.map(&:chomp)
+  pattern_lines = patterns.strip.lines.map(&:strip)
+
+  expect(output_lines.size).to eq(pattern_lines.size),
+    "Expected #{pattern_lines.size} lines, got #{output_lines.size}:\n#{procsd_output}"
+
+  pattern_lines.each_with_index do |pattern, i|
+    regex = Regexp.new("^#{pattern}$")
+    expect(output_lines[i]).to match(regex),
+      "Line #{i + 1}: expected to match #{regex.inspect}, got #{output_lines[i].inspect}"
+  end
 end
 
 Then("the systemd directory should contain {string}") do |filename|
