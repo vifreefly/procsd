@@ -2,47 +2,33 @@ require "yaml"
 require "erb"
 
 module Procsd
-  class Config
+  class Config < Struct.new(:app, :processes, :environment, :dev_environment, :systemd_dir, :nginx)
     class Error < StandardError; end
-
-    attr_reader :app, :processes, :environment, :dev_environment, :systemd_dir, :nginx
 
     def self.load(path = "procsd.yml")
       new(path)
     end
 
     def initialize(path)
-      raise Error, "Config file #{path} doesn't exists" unless File.exist?(path)
-
-      procsd = parse_yaml(path)
-
-      raise Error, "Missing app name in the procsd.yml file" unless procsd["app"]
-      @app = procsd["app"]
-
-      @processes = load_processes(procsd)
-      @environment = procsd["environment"] || {}
-      @dev_environment = procsd["dev_environment"] || {}
-      @systemd_dir = procsd["systemd_dir"] || Procsd::DEFAULT_SYSTEMD_DIR
-      @nginx = procsd["nginx"]
-    end
-
-    def to_h
-      {
-        app: @app,
-        processes: @processes,
-        environment: @environment,
-        dev_environment: @dev_environment,
-        systemd_dir: @systemd_dir,
-        nginx: @nginx
-      }
+      config_file = read_config_file(path)
+      self.app = config_file["app"] || raise(Error, "Missing app name in the procsd.yml file")
+      self.processes = load_processes(config_file)
+      self.environment = config_file["environment"] || {}
+      self.dev_environment = config_file["dev_environment"] || {}
+      self.systemd_dir = config_file["systemd_dir"] || Procsd::DEFAULT_SYSTEMD_DIR
+      self.nginx = config_file["nginx"]
     end
 
     private
 
-    def parse_yaml(path)
-      YAML.safe_load(ERB.new(File.read(path)).result)
-    rescue => e
-      raise Error, "Can't read #{path}: #{e.inspect}"
+    def read_config_file path
+      raise Error, "Config file #{path} doesn't exist" unless File.exist?(path)
+      begin
+        config_file = YAML.safe_load(ERB.new(File.read(path)).result)
+      rescue => e
+        raise Error, "Can't read #{path}: #{e.inspect}"
+      end
+      config_file
     end
 
     def load_processes(procsd)
