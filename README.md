@@ -317,13 +317,11 @@ Everything is done. Start app services (`procsd start`) and go to `http://my-dom
 
 #### Auto SSL using Certbot
 
-To generate Nginx config with free SSL certificate (from [Let’s Encrypt](https://letsencrypt.org/)) included, you need to install [Certbot](https://certbot.eff.org/) on the remote server first. For Ubuntu 18.04 (check here instructions for other versions https://certbot.eff.org/lets-encrypt/ubuntufocal-nginx):
+To generate Nginx config with free SSL certificate (from [Let’s Encrypt](https://letsencrypt.org/)) included, you need to install [Certbot](https://certbot.eff.org/) on the remote server first. For Ubuntu (check here instructions for other versions https://certbot.eff.org/instructions?ws=nginx&os=snap):
 
 ```bash
-$ sudo apt install software-properties-common
-$ sudo add-apt-repository ppa:certbot/certbot
-$ sudo apt update
-$ sudo apt install certbot python-certbot-nginx
+$ sudo snap install --classic certbot
+$ sudo ln -s /snap/bin/certbot /usr/local/bin/certbot
 ```
 
 > When you install certbot, it automatically setup a cron job (twice per day) to renew expiring certificates ([Automated Renewals](https://certbot.eff.org/docs/using.html#automated-renewals)), so you don't have to worry about renewing certificates manually.
